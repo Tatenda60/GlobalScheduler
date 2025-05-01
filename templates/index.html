@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Welcome message -->
+    <div class="col-12 mb-4">
+        <div class="card card-dashboard">
+            <div class="card-body">
+                <h5 class="card-title">Welcome back, {{ current_user.username }}!</h5>
+                <p class="card-text">Manage your loan applications and get insights about your credit risk profile.</p>
+                <a href="{{ url_for('loan.apply') }}" class="btn btn-primary">Apply for a Loan</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick stats -->
+    <div class="col-md-4 mb-4">
+        <div class="card card-dashboard card-metric">
+            <div class="card-body">
+                <div class="metric-icon text-primary">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="metric-value">{{ total_applications }}</div>
+                <div class="metric-label">Total Applications</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card card-dashboard card-metric">
+            <div class="card-body">
+                <div class="metric-icon text-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="metric-value">{{ approved_applications }}</div>
+                <div class="metric-label">Approved Loans</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card card-dashboard card-metric">
+            <div class="card-body">
+                <div class="metric-icon text-info">
+                    <i class="fas fa-percent"></i>
+                </div>
+                <div class="metric-value">
+                    {% if total_applications > 0 %}
+                        {{ (approved_applications / total_applications * 100) | round(1) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+                <div class="metric-label">Approval Rate</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent applications -->
+    <div class="col-12 mb-4">
+        <div class="card card-dashboard">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Applications</h5>
+            </div>
+            <div class="card-body">
+                {% if applications %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Loan Amount</th>
+                                    <th>Purpose</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in applications %}
+                                <tr>
+                                    <td>{{ app.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>${{ app.loan_amount | round(2) }}</td>
+                                    <td>{{ app.loan_purpose | title }}</td>
+                                    <td>
+                                        {% if app.status == 'Approved' %}
+                                            <span class="badge bg-success loan-status-badge">Approved</span>
+                                        {% elif app.status == 'Rejected' %}
+                                            <span class="badge bg-danger loan-status-badge">Rejected</span>
+                                        {% elif app.status == 'Under Review' %}
+                                            <span class="badge bg-warning loan-status-badge">Under Review</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary loan-status-badge">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('loan.predict', application_id=app.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3"></i>
+                        <p class="mb-0">You haven't submitted any loan applications yet.</p>
+                        <a href="{{ url_for('loan.apply') }}" class="btn btn-primary mt-3">Apply for a Loan Now</a>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="card-footer text-center">
+                <a href="{{ url_for('loan.history') }}" class="text-decoration-none">View all applications</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick links -->
+    <div class="col-12 mb-4">
+        <div class="card card-dashboard">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('loan.apply') }}" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-file-invoice-dollar mb-2"></i><br>
+                                Apply for Loan
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('loan.history') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-history mb-2"></i><br>
+                                Loan History
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('insights.insights') }}" class="btn btn-outline-info btn-lg">
+                                <i class="fas fa-chart-line mb-2"></i><br>
+                                View Insights
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('profile.profile') }}" class="btn btn-outline-dark btn-lg">
+                                <i class="fas fa-user mb-2"></i><br>
+                                My Profile
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

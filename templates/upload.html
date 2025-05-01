@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Upload CSV Data{% endblock %}
+
+{% block page_title %}Upload CSV Data{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4 class="card-title">Batch Loan Processing</h4>
+                <p class="card-text">Upload a CSV file containing multiple loan applications to process them at once.</p>
+                
+                <form method="POST" action="{{ url_for('loan.upload') }}" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">{{ form.csv_file.label }}</label>
+                        {{ form.csv_file(class="form-control", id="csv_file") }}
+                        {% if form.csv_file.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.csv_file.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('loan.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">CSV File Format</h5>
+            </div>
+            <div class="card-body">
+                <p>Your CSV file must include the following columns:</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Column Name</th>
+                                <th>Description</th>
+                                <th>Data Type</th>
+                                <th>Valid Values</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>loan_amount</td>
+                                <td>The requested loan amount</td>
+                                <td>Numeric</td>
+                                <td>1000-100000</td>
+                            </tr>
+                            <tr>
+                                <td>loan_term</td>
+                                <td>Loan term in months</td>
+                                <td>Integer</td>
+                                <td>6-60</td>
+                            </tr>
+                            <tr>
+                                <td>credit_score</td>
+                                <td>Applicant's credit score</td>
+                                <td>Integer</td>
+                                <td>300-850</td>
+                            </tr>
+                            <tr>
+                                <td>annual_income</td>
+                                <td>Annual income in dollars</td>
+                                <td>Numeric</td>
+                                <td>&gt; 0</td>
+                            </tr>
+                            <tr>
+                                <td>monthly_expenses</td>
+                                <td>Monthly expenses in dollars</td>
+                                <td>Numeric</td>
+                                <td>&gt;= 0</td>
+                            </tr>
+                            <tr>
+                                <td>existing_debt</td>
+                                <td>Total existing debt in dollars</td>
+                                <td>Numeric</td>
+                                <td>&gt;= 0</td>
+                            </tr>
+                            <tr>
+                                <td>employment_status</td>
+                                <td>Current employment status</td>
+                                <td>Text</td>
+                                <td>full_time, part_time, self_employed, unemployed, retired</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i> Example CSV row: <code>50000,36,720,75000,2000,15000,full_time</code>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Make sure your CSV file:
+                    <ul class="mb-0">
+                        <li>Has a header row with the column names listed above</li>
+                        <li>Contains no empty cells in required columns</li>
+                        <li>Uses comma as the delimiter</li>
+                        <li>Contains numeric values without currency symbols or commas</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

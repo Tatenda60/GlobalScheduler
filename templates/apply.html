@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Apply for Loan{% endblock %}
+
+{% block page_title %}Apply for Loan{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4 class="card-title">Loan Application</h4>
+                <p class="card-text">Fill in the form below to apply for a loan. Our system will evaluate your application and provide a risk assessment.</p>
+                
+                <form id="loan-application-form" method="POST" action="{{ url_for('loan.apply') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Loan Details Section -->
+                    <div class="loan-form-section">
+                        <h5 class="loan-form-section-title">Loan Details</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="loan_amount" class="form-label">{{ form.loan_amount.label }}</label>
+                                {{ form.loan_amount(class="form-control", id="loan_amount", placeholder="Enter amount") }}
+                                {% if form.loan_amount.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.loan_amount.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Amount between $1,000 and $100,000</small>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="loan_purpose" class="form-label">{{ form.loan_purpose.label }}</label>
+                                {{ form.loan_purpose(class="form-select", id="loan_purpose") }}
+                                {% if form.loan_purpose.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.loan_purpose.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="loan_term" class="form-label">{{ form.loan_term.label }}</label>
+                                {{ form.loan_term(class="form-control", id="loan_term", placeholder="Enter term in months") }}
+                                {% if form.loan_term.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.loan_term.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Term between 6 and 60 months</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Personal Information Section -->
+                    <div class="loan-form-section">
+                        <h5 class="loan-form-section-title">Personal Information</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="age" class="form-label">{{ form.age.label }}</label>
+                                {{ form.age(class="form-control", id="age", placeholder="Enter your age") }}
+                                {% if form.age.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.age.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="employment_status" class="form-label">{{ form.employment_status.label }}</label>
+                                {{ form.employment_status(class="form-select", id="employment_status") }}
+                                {% if form.employment_status.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.employment_status.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="employment_length" class="form-label">{{ form.employment_length.label }}</label>
+                                {{ form.employment_length(class="form-control", id="employment_length", placeholder="Enter years") }}
+                                {% if form.employment_length.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.employment_length.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="home_ownership" class="form-label">{{ form.home_ownership.label }}</label>
+                                {{ form.home_ownership(class="form-select", id="home_ownership") }}
+                                {% if form.home_ownership.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.home_ownership.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Financial Information Section -->
+                    <div class="loan-form-section">
+                        <h5 class="loan-form-section-title">Financial Information</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="annual_income" class="form-label">{{ form.annual_income.label }}</label>
+                                {{ form.annual_income(class="form-control", id="annual_income", placeholder="Enter annual income") }}
+                                {% if form.annual_income.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.annual_income.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="monthly_expenses" class="form-label">{{ form.monthly_expenses.label }}</label>
+                                {{ form.monthly_expenses(class="form-control", id="monthly_expenses", placeholder="Enter monthly expenses") }}
+                                {% if form.monthly_expenses.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.monthly_expenses.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="existing_debt" class="form-label">{{ form.existing_debt.label }}</label>
+                                {{ form.existing_debt(class="form-control", id="existing_debt", placeholder="Enter existing debt") }}
+                                {% if form.existing_debt.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.existing_debt.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="credit_score" class="form-label">{{ form.credit_score.label }}</label>
+                                {{ form.credit_score(class="form-control", id="credit_score", placeholder="Enter credit score (300-850)") }}
+                                {% if form.credit_score.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.credit_score.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Score between 300 and 850</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('loan.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Additional Information Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">How We Calculate Risk</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <h6><i class="fas fa-calculator me-2"></i> Probability of Default (PD)</h6>
+                        <p class="small">The likelihood that you will default on the loan, based on your credit history and financial situation.</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <h6><i class="fas fa-chart-pie me-2"></i> Loss Given Default (LGD)</h6>
+                        <p class="small">The estimated loss that would occur if you default on the loan.</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <h6><i class="fas fa-money-bill-wave me-2"></i> Exposure at Default (EAD)</h6>
+                        <p class="small">The total value that would be at risk when a default occurs.</p>
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> All information provided will be used to assess your loan application. Please ensure all data is accurate and up-to-date.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

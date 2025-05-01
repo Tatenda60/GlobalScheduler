@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Insights{% endblock %}
+
+{% block page_title %}Risk Insights & Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Key Metrics -->
+    <div class="col-md-3 mb-4">
+        <div class="metric-card bg-body-tertiary">
+            <div class="metric-icon text-primary">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="metric-title">Total Applications</div>
+            <div class="metric-value-large">{{ total_applications }}</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="metric-card bg-body-tertiary">
+            <div class="metric-icon text-success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="metric-title">Approval Rate</div>
+            <div class="metric-value-large">{{ approval_rate | round(1) }}%</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="metric-card bg-body-tertiary">
+            <div class="metric-icon text-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="metric-title">Avg. Risk Rating</div>
+            <div class="metric-value-large">
+                {% if avg_metrics.avg_risk %}
+                    {{ avg_metrics.avg_risk | round(1) }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="metric-card bg-body-tertiary">
+            <div class="metric-icon text-info">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="metric-title">Avg. Default Probability</div>
+            <div class="metric-value-large">
+                {% if avg_metrics.avg_pd %}
+                    {{ (avg_metrics.avg_pd * 100) | round(1) }}%
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart: Approval Status Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Application Status Distribution</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="approvalChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart: Risk by Credit Score -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Risk Rating by Credit Score Range</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="riskByCreditScoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart: Risk vs Income -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Risk Rating vs. Annual Income</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="riskByIncomeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Applications Timeline -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Applications Timeline</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_applications %}
+                    <div class="timeline">
+                        {% for app in recent_applications %}
+                            <div class="timeline-item mb-4">
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <div class="timeline-date">
+                                            <span class="badge bg-secondary">{{ app.created_at.strftime('%Y-%m-%d') }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="timeline-content">
+                                            <h6>${{ app.loan_amount | round(2) }} Loan Application</h6>
+                                            <p class="mb-0">Purpose: {{ app.loan_purpose | title }}</p>
+                                            <p class="small text-muted">Term: {{ app.loan_term }} months</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        {% if app.status == 'Approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif app.status == 'Rejected' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% elif app.status == 'Under Review' %}
+                                            <span class="badge bg-warning">Under Review</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                        
+                                        <div class="mt-2">
+                                            <a href="{{ url_for('loan.predict', application_id=app.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p>No recent applications found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Risk Insights -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Risk Management Insights</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="insight-card p-3 bg-body-tertiary rounded">
+                            <h6><i class="fas fa-chart-line me-2"></i> Risk Trend</h6>
+                            <p>
+                                {% if avg_metrics.avg_risk and avg_metrics.avg_risk < 5 %}
+                                    Your application risk profile appears to be favorable. Consider applying for larger loans if needed.
+                                {% elif avg_metrics.avg_risk and avg_metrics.avg_risk >= 5 %}
+                                    Your applications show a higher risk profile. Consider improving financial metrics before new applications.
+                                {% else %}
+                                    Not enough data to analyze risk trends.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="insight-card p-3 bg-body-tertiary rounded">
+                            <h6><i class="fas fa-money-bill-wave me-2"></i> Financial Recommendation</h6>
+                            <p>
+                                {% if approved_count == 0 and total_applications > 0 %}
+                                    No approved loans yet. Consider improving your credit score and reducing debt-to-income ratio.
+                                {% elif approved_count > 0 %}
+                                    Maintain your current financial behavior to keep a positive credit profile.
+                                {% else %}
+                                    Submit a loan application to receive financial recommendations.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="insight-card p-3 bg-body-tertiary rounded">
+                            <h6><i class="fas fa-lightbulb me-2"></i> Next Steps</h6>
+                            <p>
+                                {% if total_applications == 0 %}
+                                    Start by submitting your first loan application to see your credit risk profile.
+                                {% elif approved_count / total_applications < 0.5 %}
+                                    Consider applications with lower loan amounts or longer terms to reduce risk.
+                                {% else %}
+                                    Your applications have a good approval rate. Continue with similar loan profiles.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
