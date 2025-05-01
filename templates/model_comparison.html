@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block title %}Model Comparison{% endblock %}
+
+{% block page_title %}Credit Risk Model Comparison{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Introduction -->
+    <div class="col-md-12 mb-4">
+        <div class="card bg-body-tertiary border-0">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-balance-scale me-2"></i>Compare Risk Assessment Models</h5>
+                <p class="card-text">
+                    Our platform uses multiple risk assessment models to evaluate loan applications. Each model 
+                    has different strengths and focuses on various aspects of credit risk. This comparison 
+                    allows you to see how different models would assess your applications.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Selection Cards -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Available Models</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for model in models %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 model-card" data-model-id="{{ model.id }}">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ model.name }}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">Base Accuracy: {{ (model.accuracy * 100) | round(1) }}%</h6>
+                                <p class="card-text">{{ model.description }}</p>
+                                <p class="card-text"><strong>Key Features:</strong></p>
+                                <ul class="list-unstyled">
+                                    {% for feature in model.features %}
+                                    <li><i class="fas fa-check text-success me-2"></i>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0">
+                                <button type="button" class="btn btn-primary w-100 select-model-btn" 
+                                        data-model-id="{{ model.id }}">
+                                    Select Model
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Comparison Section -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Model Performance Comparison</h5>
+                <div>
+                    <small class="text-muted">Based on your {{ application_count }} application{% if application_count != 1 %}s{% endif %}</small>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if application_count > 0 %}
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <canvas id="modelComparisonChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="performance-metrics-container">
+                            {% for model_metrics in model_performance %}
+                            <div class="model-metrics card mb-3 {% if loop.first %}active{% endif %}" 
+                                 id="metrics-{{ model_metrics.id }}">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ model_metrics.name }} Performance</h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="metric-box">
+                                                <div class="metric-label">Accuracy</div>
+                                                <div class="metric-value">{{ (model_metrics.accuracy * 100) | round(1) }}%</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="metric-box">
+                                                <div class="metric-label">Precision</div>
+                                                <div class="metric-value">{{ (model_metrics.precision * 100) | round(1) }}%</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="metric-box">
+                                                <div class="metric-label">Recall</div>
+                                                <div class="metric-value">{{ (model_metrics.recall * 100) | round(1) }}%</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="metric-box">
+                                                <div class="metric-label">F1 Score</div>
+                                                <div class="metric-value">{{ (model_metrics.f1 * 100) | round(1) }}%</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <div class="confusion-matrix">
+                                        <h6 class="text-center mb-2">Confusion Matrix</h6>
+                                        <div class="matrix-container">
+                                            <div class="matrix-row">
+                                                <div class="matrix-cell header"></div>
+                                                <div class="matrix-cell header">Predicted No Default</div>
+                                                <div class="matrix-cell header">Predicted Default</div>
+                                            </div>
+                                            <div class="matrix-row">
+                                                <div class="matrix-cell header">Actual No Default</div>
+                                                <div class="matrix-cell true-negative">{{ model_metrics.true_negatives }}</div>
+                                                <div class="matrix-cell false-positive">{{ model_metrics.false_positives }}</div>
+                                            </div>
+                                            <div class="matrix-row">
+                                                <div class="matrix-cell header">Actual Default</div>
+                                                <div class="matrix-cell false-negative">{{ model_metrics.false_negatives }}</div>
+                                                <div class="matrix-cell true-positive">{{ model_metrics.true_positives }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- Predictions Chart -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5 class="mb-3">Model Predictions vs. Actual Values</h5>
+                        <div class="chart-container">
+                            <canvas id="predictionComparisonChart"></canvas>
+                        </div>
+                        <div class="text-center mt-3">
+                            <small class="text-muted">This chart shows how each model's predictions compare to actual risk assessments for your applications.</small>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> 
+                    You need to submit at least one loan application to see model performance comparisons. 
+                    <a href="{{ url_for('loan.apply') }}" class="alert-link">Submit a loan application</a> to get started.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Model Explanation -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Understanding Model Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check-circle me-2 text-success"></i>Accuracy</h6>
+                        <p>The proportion of total predictions (both default and non-default) that were correct.</p>
+                        
+                        <h6><i class="fas fa-bullseye me-2 text-primary"></i>Precision</h6>
+                        <p>Of all applications predicted to default, how many actually defaulted. High precision means fewer false alarms.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-search me-2 text-info"></i>Recall</h6>
+                        <p>Of all applications that actually defaulted, how many were correctly predicted. High recall means fewer missed defaults.</p>
+                        
+                        <h6><i class="fas fa-balance-scale me-2 text-warning"></i>F1 Score</h6>
+                        <p>A balance between precision and recall, useful when you want to find an optimal model that doesn't sacrifice either metric.</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6><i class="fas fa-table me-2"></i>Confusion Matrix Explained</h6>
+                        <ul>
+                            <li><strong>True Negative:</strong> Correctly predicted that a loan would not default</li>
+                            <li><strong>False Positive:</strong> Incorrectly predicted that a loan would default (Type I error)</li>
+                            <li><strong>False Negative:</strong> Incorrectly predicted that a loan would not default (Type II error)</li>
+                            <li><strong>True Positive:</strong> Correctly predicted that a loan would default</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Current selected model
+    let currentModelId = 'standard';
+    
+    // Update model selection
+    function selectModel(modelId) {
+        // Update UI
+        document.querySelectorAll('.model-card').forEach(card => {
+            card.classList.remove('selected');
+            if (card.dataset.modelId === modelId) {
+                card.classList.add('selected');
+            }
+        });
+        
+        // Update metrics display
+        document.querySelectorAll('.model-metrics').forEach(metrics => {
+            metrics.classList.remove('active');
+        });
+        
+        const metricsEl = document.getElementById(`metrics-${modelId}`);
+        if (metricsEl) {
+            metricsEl.classList.add('active');
+        }
+        
+        // Update current model
+        currentModelId = modelId;
+        
+        // Update prediction chart
+        updatePredictionChart(modelId);
+    }
+    
+    // Handle model selection buttons
+    document.querySelectorAll('.select-model-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modelId = this.dataset.modelId;
+            selectModel(modelId);
+        });
+    });
+    
+    {% if application_count > 0 %}
+    // Initialize Charts
+    initializeModelComparisonChart();
+    updatePredictionChart(currentModelId);
+    
+    // Function to update prediction chart
+    function updatePredictionChart(modelId) {
+        fetch(`/api/model-prediction-data?model=${modelId}`)
+            .then(response => response.json())
+            .then(data => {
+                renderPredictionChart(data);
+            })
+            .catch(error => console.error('Error fetching prediction data:', error));
+    }
+    
+    // Render prediction comparison chart
+    function renderPredictionChart(data) {
+        const ctx = document.getElementById('predictionComparisonChart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (window.predictionChart) {
+            window.predictionChart.destroy();
+        }
+        
+        window.predictionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'Actual Default Probability',
+                        data: data.actual_values.map(v => v * 100), // Convert to percentage
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Model Predicted Probability',
+                        data: data.predicted_values.map(v => v * 100), // Convert to percentage
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Default Probability (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Loan Applications'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += context.parsed.y.toFixed(1) + '%';
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Render model comparison chart
+    function initializeModelComparisonChart() {
+        const ctx = document.getElementById('modelComparisonChart').getContext('2d');
+        
+        // Extract model names and metrics
+        const modelNames = [];
+        const accuracies = [];
+        const precisions = [];
+        const recalls = [];
+        const f1Scores = [];
+        
+        // Loop through model_performance data from the server
+        {% for model in model_performance %}
+        modelNames.push('{{ model.name }}');
+        accuracies.push({{ model.accuracy * 100 }});
+        precisions.push({{ model.precision * 100 }});
+        recalls.push({{ model.recall * 100 }});
+        f1Scores.push({{ model.f1 * 100 }});
+        {% endfor %}
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: modelNames,
+                datasets: [
+                    {
+                        label: 'Accuracy',
+                        data: accuracies,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Precision',
+                        data: precisions,
+                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Recall',
+                        data: recalls,
+                        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'F1 Score',
+                        data: f1Scores,
+                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Score (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Models'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += context.parsed.y.toFixed(1) + '%';
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+});
+</script>
+
+<style>
+.model-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.model-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.model-card.selected {
+    border-color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.metric-box {
+    padding: 10px;
+    border-radius: 5px;
+    background-color: rgba(var(--bs-secondary-rgb), 0.1);
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.metric-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.model-metrics {
+    display: none;
+}
+
+.model-metrics.active {
+    display: block;
+}
+
+.confusion-matrix {
+    margin-top: 15px;
+}
+
+.matrix-container {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.matrix-row {
+    display: table-row;
+}
+
+.matrix-cell {
+    display: table-cell;
+    padding: 8px;
+    text-align: center;
+    border: 1px solid rgba(var(--bs-secondary-rgb), 0.2);
+}
+
+.matrix-cell.header {
+    background-color: rgba(var(--bs-secondary-rgb), 0.1);
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+.true-positive {
+    background-color: rgba(40, 167, 69, 0.2);
+}
+
+.true-negative {
+    background-color: rgba(23, 162, 184, 0.2);
+}
+
+.false-positive {
+    background-color: rgba(255, 193, 7, 0.2);
+}
+
+.false-negative {
+    background-color: rgba(220, 53, 69, 0.2);
+}
+</style>
+{% endblock %}

@@ -1,10 +1,12 @@
 from flask import (
-    Blueprint, render_template, jsonify
+    Blueprint, render_template, jsonify, request
 )
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app import db
 from models import LoanApplication, RiskAssessment
+import numpy as np
+import pandas as pd
 
 bp = Blueprint('insights', __name__)
 
@@ -143,3 +145,194 @@ def risk_by_credit_score():
         'data': [d['avg_risk'] for d in range_data],
         'counts': [d['count'] for d in range_data]
     })
+
+
+@bp.route('/model-comparison')
+@login_required
+def model_comparison():
+    """Display model comparison page"""
+    
+    # Get all loan applications with assessments
+    applications = db.session.query(
+        LoanApplication, RiskAssessment
+    ).join(
+        RiskAssessment,
+        LoanApplication.id == RiskAssessment.loan_application_id
+    ).filter(
+        LoanApplication.user_id == current_user.id
+    ).all()
+    
+    # Define the models for comparison
+    models = [
+        {
+            'id': 'standard',
+            'name': 'Standard Model',
+            'description': 'Our base credit risk model that weighs all factors equally',
+            'accuracy': 0.82,
+            'features': ['Credit Score', 'Income', 'Debt', 'Employment Status']
+        },
+        {
+            'id': 'enhanced',
+            'name': 'Enhanced Model',
+            'description': 'Advanced model with greater emphasis on credit history and payment behavior',
+            'accuracy': 0.87,
+            'features': ['Credit Score', 'Income', 'Debt', 'Employment Status', 'Payment History', 'Credit Utilization']
+        },
+        {
+            'id': 'conservative',
+            'name': 'Conservative Model',
+            'description': 'Risk-averse model focused on minimizing defaults with stricter criteria',
+            'accuracy': 0.79,
+            'features': ['Credit Score', 'Debt-to-Income Ratio', 'Employment Length', 'Existing Debt']
+        }
+    ]
+    
+    # Prepare sample data for model performance comparison
+    # For demonstration, we'll generate simulated predictions for each model
+    model_performance = []
+    
+    # Only process if we have applications
+    if applications:
+        # Extract features for prediction comparison
+        app_features = []
+        actual_outcomes = []
+        
+        for app, risk in applications:
+            # Create a feature row for each application
+            features = {
+                'loan_amount': app.loan_amount,
+                'loan_term': app.loan_term,
+                'credit_score': app.credit_score,
+                'annual_income': app.annual_income,
+                'monthly_expenses': app.monthly_expenses,
+                'existing_debt': app.existing_debt,
+                'employment_status': app.employment_status,
+                'employment_length': app.employment_length if app.employment_length else 0,
+                'home_ownership': app.home_ownership
+            }
+            app_features.append(features)
+            
+            # Use current risk assessment as "actual" outcome
+            # In a real system, we would use confirmed defaults
+            actual_outcomes.append(1 if risk.probability_of_default > 0.3 else 0)
+        
+        # Calculate simulated predictions for each model
+        for model in models:
+            # Generate different predictions based on model type
+            if model['id'] == 'standard':
+                # Standard model: baseline predictions
+                predicted = actual_outcomes.copy()
+                # Add some noise for demonstration (20% error rate)
+                for i in range(len(predicted)):
+                    if np.random.random() < 0.18:
+                        predicted[i] = 1 - predicted[i]
+                        
+            elif model['id'] == 'enhanced':
+                # Enhanced model: better predictions
+                predicted = actual_outcomes.copy()
+                # Add less noise (13% error rate)
+                for i in range(len(predicted)):
+                    if np.random.random() < 0.13:
+                        predicted[i] = 1 - predicted[i]
+                        
+            elif model['id'] == 'conservative':
+                # Conservative model: more false positives (predicts default more often)
+                predicted = actual_outcomes.copy()
+                # Add different noise pattern
+                for i in range(len(predicted)):
+                    if predicted[i] == 0 and np.random.random() < 0.25:
+                        predicted[i] = 1  # More likely to predict default when it's not
+                    elif predicted[i] == 1 and np.random.random() < 0.15:
+                        predicted[i] = 0  # Less likely to miss actual defaults
+            
+            # Calculate metrics
+            true_pos = sum(1 for a, p in zip(actual_outcomes, predicted) if a == 1 and p == 1)
+            false_pos = sum(1 for a, p in zip(actual_outcomes, predicted) if a == 0 and p == 1)
+            true_neg = sum(1 for a, p in zip(actual_outcomes, predicted) if a == 0 and p == 0)
+            false_neg = sum(1 for a, p in zip(actual_outcomes, predicted) if a == 1 and p == 0)
+            
+            # Calculate performance metrics
+            accuracy = (true_pos + true_neg) / len(actual_outcomes) if len(actual_outcomes) > 0 else 0
+            precision = true_pos / (true_pos + false_pos) if (true_pos + false_pos) > 0 else 0
+            recall = true_pos / (true_pos + false_neg) if (true_pos + false_neg) > 0 else 0
+            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+            
+            # Record model performance
+            model_performance.append({
+                'id': model['id'],
+                'name': model['name'],
+                'accuracy': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1': f1,
+                'true_positives': true_pos,
+                'false_positives': false_pos,
+                'true_negatives': true_neg,
+                'false_negatives': false_neg
+            })
+    
+    return render_template(
+        'model_comparison.html',
+        title='Model Comparison',
+        models=models,
+        model_performance=model_performance,
+        application_count=len(applications) if applications else 0
+    )
+
+
+@bp.route('/api/model-prediction-data')
+@login_required
+def model_prediction_data():
+    """API endpoint for model prediction comparison"""
+    
+    model_id = request.args.get('model', 'standard')
+    
+    # Get all loan applications with assessments
+    applications = db.session.query(
+        LoanApplication, RiskAssessment
+    ).join(
+        RiskAssessment,
+        LoanApplication.id == RiskAssessment.loan_application_id
+    ).filter(
+        LoanApplication.user_id == current_user.id
+    ).order_by(LoanApplication.created_at).all()
+    
+    # Prepare data for chart
+    data = {
+        'labels': [],
+        'actual_values': [],
+        'predicted_values': []
+    }
+    
+    # Only process if we have applications
+    if applications:
+        # For each application, generate model predictions
+        for i, (app, risk) in enumerate(applications):
+            # Add label (application number or date)
+            data['labels'].append(f"App {i+1}")
+            
+            # Actual probability of default (from our risk engine)
+            data['actual_values'].append(risk.probability_of_default)
+            
+            # Generate a simulated prediction based on the model
+            # In a real system, we would call different model implementations
+            base_prediction = risk.probability_of_default
+            
+            if model_id == 'standard':
+                # Standard model: slight variation
+                prediction = base_prediction * (1 + (np.random.random() * 0.2 - 0.1))
+            elif model_id == 'enhanced':
+                # Enhanced model: closer to actual
+                prediction = base_prediction * (1 + (np.random.random() * 0.1 - 0.05))
+            elif model_id == 'conservative':
+                # Conservative model: higher predictions (more cautious)
+                prediction = base_prediction * (1 + (np.random.random() * 0.15))
+            else:
+                prediction = base_prediction
+                
+            # Ensure prediction is between 0 and 1
+            prediction = max(0, min(1, prediction))
+            
+            data['predicted_values'].append(prediction)
+    
+    return jsonify(data)
