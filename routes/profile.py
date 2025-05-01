@@ -60,3 +60,10 @@ def security():
         return redirect(url_for('profile.security'))
     
     return render_template('security.html', title='Security Settings', form=form)
+
+
+@bp.route('/security-tips')
+@login_required
+def security_tips():
+    """Display security tips and best practices"""
+    return render_template('security_tips.html', title='Security Tips')
