@@ -262,32 +262,43 @@ def model_comparison():
         
         # Calculate simulated predictions for each model
         for model in models:
-            # Generate different predictions based on model type
-            if model['id'] == 'standard':
-                # Standard model: baseline predictions
-                predicted = actual_outcomes.copy()
-                # Add some noise for demonstration (20% error rate)
+            # Default predictions for any model
+            predicted = actual_outcomes.copy()
+            
+            # Generate different predictions based on model ID
+            if model['id'] == 'logistic_regression':
+                # Logistic Regression model: baseline predictions
                 for i in range(len(predicted)):
                     if np.random.random() < 0.18:
                         predicted[i] = 1 - predicted[i]
                         
-            elif model['id'] == 'enhanced':
-                # Enhanced model: better predictions
-                predicted = actual_outcomes.copy()
-                # Add less noise (13% error rate)
+            elif model['id'] == 'random_forest':
+                # Random Forest model: better predictions
                 for i in range(len(predicted)):
                     if np.random.random() < 0.13:
                         predicted[i] = 1 - predicted[i]
                         
-            elif model['id'] == 'conservative':
-                # Conservative model: more false positives (predicts default more often)
-                predicted = actual_outcomes.copy()
-                # Add different noise pattern
+            elif model['id'] == 'gradient_boosting':
+                # Gradient Boosting model: good with fewer false negatives
                 for i in range(len(predicted)):
-                    if predicted[i] == 0 and np.random.random() < 0.25:
+                    if predicted[i] == 0 and np.random.random() < 0.19:
+                        predicted[i] = 1  # More false positives
+                    elif predicted[i] == 1 and np.random.random() < 0.14:
+                        predicted[i] = 0  # Fewer false negatives
+            
+            elif model['id'] == 'neural_network':
+                # Neural Network model: balanced approach
+                for i in range(len(predicted)):
+                    if np.random.random() < 0.16:
+                        predicted[i] = 1 - predicted[i]
+            
+            elif model['id'] == 'svm':
+                # SVM model: more conservative (more false positives)
+                for i in range(len(predicted)):
+                    if predicted[i] == 0 and np.random.random() < 0.22:
                         predicted[i] = 1  # More likely to predict default when it's not
-                    elif predicted[i] == 1 and np.random.random() < 0.15:
-                        predicted[i] = 0  # Less likely to miss actual defaults
+                    elif predicted[i] == 1 and np.random.random() < 0.18:
+                        predicted[i] = 0  # More likely to miss actual defaults
             
             # Calculate metrics
             true_pos = sum(1 for a, p in zip(actual_outcomes, predicted) if a == 1 and p == 1)
@@ -362,14 +373,20 @@ def model_prediction_data():
             # In a real system, we would call different model implementations
             base_prediction = risk.probability_of_default
             
-            if model_id == 'standard':
-                # Standard model: slight variation
+            if model_id == 'logistic_regression':
+                # Logistic Regression: moderate variation
                 prediction = base_prediction * (1 + (np.random.random() * 0.2 - 0.1))
-            elif model_id == 'enhanced':
-                # Enhanced model: closer to actual
+            elif model_id == 'random_forest':
+                # Random Forest: closer to actual (more accurate)
                 prediction = base_prediction * (1 + (np.random.random() * 0.1 - 0.05))
-            elif model_id == 'conservative':
-                # Conservative model: higher predictions (more cautious)
+            elif model_id == 'gradient_boosting':
+                # Gradient Boosting: slightly higher predictions
+                prediction = base_prediction * (1 + (np.random.random() * 0.15 - 0.05))
+            elif model_id == 'neural_network':
+                # Neural Network: variable performance
+                prediction = base_prediction * (1 + (np.random.random() * 0.18 - 0.09))
+            elif model_id == 'svm':
+                # SVM: more conservative (higher predictions)
                 prediction = base_prediction * (1 + (np.random.random() * 0.15))
             else:
                 prediction = base_prediction
