@@ -1,0 +1,156 @@
+🛠 Project Brief: Credit Risk Modeling System (Python + Flask)
+🔍 Overview
+Build a Credit Risk Modeling System using Python (Flask framework) that is secure, modern-looking, offline-capable, and professional. It should enable users to apply for loans and predict credit risk based on input data, while also supporting insights, profile management, and robust user authentication.
+
+🎯 Core Objectives
+The system should implement the following credit risk components:
+
+Probability of Default (PD) – Likelihood a borrower defaults.
+
+Loss Given Default (LGD) – Expected loss ratio when default occurs.
+
+Exposure at Default (EAD) – Value exposed to risk at time of default.
+
+Risk-Based Pricing – Adjust loan terms based on creditworthiness.
+
+Regulatory Compliance – Align with financial risk standards.
+
+🖥️ User Interface & Pages
+🔹 1️⃣ Homepage
+Landing page after login
+
+Welcome text and navigation links
+
+Link to “Apply for Loan”
+
+Friendly UI
+
+🔹 2️⃣ Login/Register Pages
+User login with:
+
+✅ Forgot Password (optional reset link or instructions)
+
+Register account with:
+
+Password validation (see below)
+
+Validation Rules for Password (Gmail-like):
+
+8–12 characters long
+
+At least 1 uppercase, 1 lowercase, 1 number, 1 special character
+
+No spaces
+
+Show clear message if invalid
+
+Pages: login.html, register.html
+
+🔹 3️⃣ Loan Application Page
+Form for financial input (income, expenses, credit score, etc.)
+
+On submit: perform backend risk prediction
+
+Page: apply.html
+
+🔹 4️⃣ Prediction Result Page
+Output: PD, LGD, EAD
+
+Recommendation Output:
+
+✔️ “Loan likely to be approved”
+
+❌ “Loan not recommended”
+
+⚠️ “Needs further review”
+
+Reasons displayed based on data (e.g., low income, high debt ratio)
+
+Back to Home button
+
+Page: predict.html
+
+🔹 5️⃣ Loan History
+Table of past applications, status, risk levels
+
+Page: history.html
+
+🔹 6️⃣ Insights Page (Optional but Recommended)
+📊 Graphs of:
+
+Approval vs. Rejection rates
+
+Income vs. Approval
+
+Risk score by credit score range
+
+Useful for users and admin-level overviews
+
+Page: insights.html
+
+🔹 7️⃣ Profile & Security Pages
+Update personal information (name, email, etc.)
+
+Change password
+
+Enable/disable 2FA and other security features
+
+Pages: profile.html, security.html
+
+📦 Dataset Support
+CSV upload support
+
+Validation of uploaded data format
+
+Dataset includes fields like:
+
+Age, income, expenses, credit score, debt, loan amount, purpose
+
+Risk calculations use real formulas to derive PD, LGD, EAD, expected loss
+
+✅ Technical Specifications
+Framework: Python + Flask
+
+Backend:
+
+Structured into modules (routes/, models/, templates/, etc.)
+
+Offline capability – must run without needing a cloud server
+
+Handle edge cases (e.g., no internet, CSV errors, user input)
+
+Frontend:
+
+Responsive layout (mobile/tablet friendly)
+
+Professional UI design with consistent theme
+
+Security:
+
+Password hashing
+
+Input sanitization
+
+Password policy enforcement
+
+Forgot password functionality
+
+Deployment:
+
+If deployed on Replit or local machine, avoid 500 errors
+
+Ensure correct port open
+
+Ensure app is running and available externally when needed
+
+⚙️ Additional Features & Notes
+Ensure that the system doesn't fail with:
+
+vbnet
+Copy
+Edit
+500 Internal Server Error
+Something went wrong on our end. We're working to fix the issue.
+Use modular Flask practices to allow future upgrades (e.g., admin panel, retraining models)
+
+Provide button links to all major sections from the sidebar
