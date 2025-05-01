@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-4">
+    <h2 class="text-center mb-4">Security Tips</h2>
+    
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i> Security Best Practices</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Protecting your account and financial information is our top priority. 
+                       Follow these tips to keep your information secure:</p>
+                </div>
+            </div>
+            
+            <!-- Password Security -->
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="fas fa-key fa-2x text-primary"></i>
+                    </div>
+                    <h5 class="mb-0">Password Security</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-lock fa-3x text-primary mb-3"></i>
+                                    <h6>Strong Password</h6>
+                                    <p class="mb-0">Use a combination of letters, numbers, and symbols.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-sync fa-3x text-success mb-3"></i>
+                                    <h6>Regular Updates</h6>
+                                    <p class="mb-0">Change your password periodically for better security.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-fingerprint fa-3x text-info mb-3"></i>
+                                    <h6>Unique Passwords</h6>
+                                    <p class="mb-0">Use different passwords for different accounts.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Password Requirements:</h6>
+                        <ul>
+                            <li>At least 8 characters long</li>
+                            <li>Includes at least one uppercase letter</li>
+                            <li>Includes at least one lowercase letter</li>
+                            <li>Includes at least one number</li>
+                            <li>Includes at least one special character (e.g., !@#$%^&*)</li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-lightbulb fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading">Password Tip</h6>
+                                    <p class="mb-0">Consider using a passphrase - a sequence of words that is easy for you to remember but difficult for others to guess.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Account Verification -->
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="fas fa-user-check fa-2x text-success"></i>
+                    </div>
+                    <h5 class="mb-0">Account Verification</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-envelope fa-3x text-warning mb-3"></i>
+                                    <h6>Verify Email</h6>
+                                    <p class="mb-0">Keep your email up to date to receive important notifications.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-mobile-alt fa-3x text-danger mb-3"></i>
+                                    <h6>Phone Verification</h6>
+                                    <p class="mb-0">Add your phone number for additional account recovery options.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Why Verification Matters:</h6>
+                        <ul>
+                            <li>Helps confirm your identity</li>
+                            <li>Enables account recovery if you forget your password</li>
+                            <li>Allows us to notify you of suspicious activities</li>
+                            <li>Ensures you receive important updates about your loan applications</li>
+                        </ul>
+                        
+                        <div class="alert alert-warning">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading">Important</h6>
+                                    <p class="mb-0">We will never ask for your password or personal information through email. If you receive such messages, please report them immediately.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Login Security -->
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="fas fa-sign-in-alt fa-2x text-info"></i>
+                    </div>
+                    <h5 class="mb-0">Login Security</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-laptop fa-3x text-secondary mb-3"></i>
+                                    <h6>Device Management</h6>
+                                    <p class="mb-0">Always log out when using public computers.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-history fa-3x text-dark mb-3"></i>
+                                    <h6>Monitor Activity</h6>
+                                    <p class="mb-0">Regularly check your account activity and report suspicious behavior.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Additional Tips:</h6>
+                        <ul>
+                            <li>Use secure networks when accessing your account</li>
+                            <li>Keep your operating system and browser updated</li>
+                            <li>Install and maintain antivirus software on your devices</li>
+                            <li>Be cautious of phishing attempts that mimic our website</li>
+                        </ul>
+                        
+                        <div class="alert alert-primary">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading">Did You Know?</h6>
+                                    <p class="mb-0">Most security breaches occur due to weak passwords or social engineering rather than sophisticated hacking techniques.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Call to Action -->
+            <div class="text-center mt-4">
+                <a href="{{ url_for('profile.security') }}" class="btn btn-lg btn-primary">
+                    <i class="fas fa-lock me-2"></i> Update Your Security Settings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

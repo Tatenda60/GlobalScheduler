@@ -56,7 +56,55 @@
         </div>
     </div>
 
-    <!-- Model Comparison Section -->
+    <!-- Comprehensive Risk Model Comparison Table -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Risk Model Comparison</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Model Name</th>
+                                <th>Type</th>
+                                <th>Accuracy</th>
+                                <th>Precision</th>
+                                <th>Recall</th>
+                                <th>F1 Score</th>
+                                <th>ROC AUC</th>
+                                <th>Training Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for model in models %}
+                            <tr class="model-row" data-model-id="{{ model.id }}">
+                                <td><strong>{{ model.name }}</strong></td>
+                                <td>{{ model.type }}</td>
+                                <td>{{ model.accuracy }}</td>
+                                <td>{{ model.precision }}</td>
+                                <td>{{ model.recall }}</td>
+                                <td>{{ model.f1 }}</td>
+                                <td>{{ model.roc_auc }}</td>
+                                <td>{{ model.training_time }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary select-model-btn"
+                                            data-model-id="{{ model.id }}">
+                                        Select
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Performance Comparison -->
     <div class="col-md-12 mb-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
