@@ -175,6 +175,7 @@ def upload():
                         user_id=current_user.id,
                         loan_amount=app_data['loan_amount'],
                         loan_term=app_data['loan_term'],
+                        loan_purpose=app_data.get('loan_purpose', 'business'),  # Set a default if not provided
                         age=30,  # Default value, not in CSV
                         annual_income=app_data['annual_income'],
                         monthly_expenses=app_data['monthly_expenses'],

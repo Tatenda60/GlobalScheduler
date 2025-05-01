@@ -351,7 +351,7 @@ class CreditRiskEngine:
         - error_message: Error message if the file is invalid, None otherwise
         """
         required_columns = [
-            'loan_amount', 'loan_term', 'credit_score', 'annual_income',
+            'loan_amount', 'loan_term', 'loan_purpose', 'credit_score', 'annual_income',
             'monthly_expenses', 'existing_debt', 'employment_status'
         ]
         
@@ -426,6 +426,7 @@ class CreditRiskEngine:
             application_data = {
                 'loan_amount': float(row['loan_amount']),
                 'loan_term': int(row['loan_term']),
+                'loan_purpose': row['loan_purpose'],
                 'credit_score': int(row['credit_score']),
                 'annual_income': float(row['annual_income']),
                 'monthly_expenses': float(row['monthly_expenses']),
