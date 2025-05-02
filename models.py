@@ -19,7 +19,10 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship with loan applications
-    loan_applications = db.relationship('LoanApplication', backref='applicant', lazy='dynamic')
+    loan_applications = db.relationship('LoanApplication', 
+                                     foreign_keys='LoanApplication.user_id',
+                                     backref='applicant', 
+                                     lazy='dynamic')
     
     def set_password(self, password):
         """Set the user's password hash"""
