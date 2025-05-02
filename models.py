@@ -85,12 +85,12 @@ class LoanApplication(db.Model):
     
     # Tracking who handled the loan
     handled_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    handled_by = db.relationship('User', foreign_keys=[handled_by_id], backref='handled_loans')
+    handled_by = db.relationship('User', foreign_keys=[handled_by_id], backref='handled_loans', lazy='joined')
     handled_at = db.Column(db.DateTime, nullable=True)
     decision_notes = db.Column(db.Text, nullable=True)
     
     # Relationship with risk assessment
-    risk_assessment = db.relationship('RiskAssessment', backref='loan_application', uselist=False)
+    risk_assessment = db.relationship('RiskAssessment', backref='loan_application', uselist=False, lazy='joined')
     
     def __repr__(self):
         return f'<LoanApplication {self.id} - ${self.loan_amount} - {self.status}>'

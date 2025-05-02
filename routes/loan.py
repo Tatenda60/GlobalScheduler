@@ -10,7 +10,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from app import db
-from models import LoanApplication, RiskAssessment
+from models import User, LoanApplication, RiskAssessment
 from forms import LoanApplicationForm, CSVUploadForm
 from risk_engine import CreditRiskEngine
 from unsupervised_models import AnomalyDetector
@@ -245,7 +245,11 @@ def predict(application_id):
 @login_required
 def history():
     """Display loan application history"""
-    applications = LoanApplication.query.filter_by(user_id=current_user.id).order_by(LoanApplication.created_at.desc()).all()
+    # Use join to eagerly load related entities
+    applications = LoanApplication.query.filter_by(user_id=current_user.id)\
+        .outerjoin(RiskAssessment)\
+        .outerjoin(User, LoanApplication.handled_by_id == User.id)\
+        .order_by(LoanApplication.created_at.desc()).all()
     
     return render_template(
         'history.html',
@@ -257,8 +261,11 @@ def history():
 @login_required
 def reports():
     """Display loan reports and analytics"""
-    # Get all applications for the current user
-    applications = LoanApplication.query.filter_by(user_id=current_user.id).all()
+    # Get all applications for the current user with eager loading of risk assessments
+    applications = LoanApplication.query.filter_by(user_id=current_user.id)\
+        .outerjoin(RiskAssessment)\
+        .options(db.contains_eager(LoanApplication.risk_assessment))\
+        .all()
     
     # Statistics
     total_applications = len(applications)
