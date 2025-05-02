@@ -11,6 +11,7 @@ from app import db
 from models import LoanApplication, RiskAssessment
 from forms import LoanApplicationForm, CSVUploadForm
 from risk_engine import CreditRiskEngine
+from unsupervised_models import AnomalyDetector
 
 bp = Blueprint('loan', __name__)
 
@@ -255,7 +256,25 @@ def upload():
                                 'std': float(df[col].std())
                             }
                     
-                    # Create simulated model training results
+                    # Initialize anomaly detector
+                    anomaly_detector = AnomalyDetector()
+                    
+                    # Train unsupervised models on the dataset
+                    try:
+                        # Train the model and get training results
+                        unsupervised_results = anomaly_detector.train(df)
+                        
+                        # Find anomalies in the dataset
+                        anomaly_results = anomaly_detector.detect_anomalies(df)
+                        
+                        # Log anomaly detection results
+                        print(f"Anomaly detection completed: Found {anomaly_results['anomaly_count']} anomalies")
+                    except Exception as e:
+                        print(f"Error in anomaly detection: {str(e)}")
+                        unsupervised_results = None
+                        anomaly_results = None
+                    
+                    # Create complete model training results
                     model_training_results = {
                         'dataset_info': {
                             'filename': uploaded_file.filename,
@@ -269,6 +288,8 @@ def upload():
                             'validation_method': "5-fold cross-validation",
                             'optimization': "Grid search for hyperparameters"
                         },
+                        'unsupervised_learning': unsupervised_results,
+                        'anomaly_detection': anomaly_results,
                         'models': [
                             {
                                 'name': 'Logistic Regression',
