@@ -170,3 +170,51 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAll = document.getElementById('selectAll');
+        const appCheckboxes = document.querySelectorAll('.app-checkbox');
+        const compareBtn = document.getElementById('compareBtn');
+        
+        // Function to update the compare button state
+        function updateCompareButton() {
+            const selectedCount = document.querySelectorAll('.app-checkbox:checked').length;
+            compareBtn.disabled = selectedCount < 1;
+            
+            // Update button text based on selection count
+            if (selectedCount > 0) {
+                compareBtn.innerHTML = `<i class="fas fa-balance-scale"></i> Compare ${selectedCount} Application${selectedCount > 1 ? 's' : ''}`;
+            } else {
+                compareBtn.innerHTML = `<i class="fas fa-balance-scale"></i> Compare Selected`;
+            }
+        }
+        
+        // Select all checkbox functionality
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                appCheckboxes.forEach(checkbox => {
+                    checkbox.checked = selectAll.checked;
+                });
+                updateCompareButton();
+            });
+        }
+        
+        // Individual checkboxes functionality
+        appCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Update "Select All" checkbox state
+                if (selectAll) {
+                    selectAll.checked = [...appCheckboxes].every(c => c.checked);
+                    selectAll.indeterminate = !selectAll.checked && [...appCheckboxes].some(c => c.checked);
+                }
+                updateCompareButton();
+            });
+        });
+        
+        // Initialize button state
+        updateCompareButton();
+    });
+</script>
+{% endblock %}

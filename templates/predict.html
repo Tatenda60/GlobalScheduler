@@ -301,6 +301,82 @@
         </div>
     </div>
 
+    {% if recent_applications %}
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Compare with Other Applications</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('loan.compare_predictions') }}" method="get">
+                    <input type="hidden" name="ids" value="{{ application.id }}">
+                    
+                    <p class="text-muted mb-3">Select applications to compare with the current one:</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Purpose</th>
+                                    <th>Status</th>
+                                    <th>Risk Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in recent_applications %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input compare-checkbox" type="checkbox" name="ids" value="{{ app.id }}">
+                                        </div>
+                                    </td>
+                                    <td>{{ app.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>${{ app.loan_amount | round(2) }}</td>
+                                    <td>{{ app.loan_purpose | title }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if app.status == 'Approved' else 'danger' if app.status == 'Rejected' else 'warning' }}">
+                                            {{ app.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if app.risk_assessment %}
+                                            <span 
+                                                class="badge
+                                                {% if app.risk_assessment.risk_rating <= 3 %}
+                                                    bg-success
+                                                {% elif app.risk_assessment.risk_rating <= 7 %}
+                                                    bg-warning
+                                                {% else %}
+                                                    bg-danger
+                                                {% endif %}
+                                                "
+                                            >
+                                                {{ app.risk_assessment.risk_rating }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" id="compareSelectedBtn" class="btn btn-primary" disabled>
+                            <i class="fas fa-balance-scale"></i> Compare Selected
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <div class="col-md-12 mb-4">
         <div class="card">
             <div class="card-body">
@@ -344,6 +420,34 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Handle comparison checkboxes
+    const compareCheckboxes = document.querySelectorAll('.compare-checkbox');
+    const compareSelectedBtn = document.getElementById('compareSelectedBtn');
+    
+    if (compareSelectedBtn) {
+        // Function to update the compare button state
+        function updateCompareButton() {
+            const selectedCount = document.querySelectorAll('.compare-checkbox:checked').length;
+            compareSelectedBtn.disabled = selectedCount < 1;
+            
+            // Update button text based on selection count
+            if (selectedCount > 0) {
+                compareSelectedBtn.innerHTML = `<i class="fas fa-balance-scale"></i> Compare with ${selectedCount} App${selectedCount > 1 ? 's' : ''}`;
+            } else {
+                compareSelectedBtn.innerHTML = `<i class="fas fa-balance-scale"></i> Compare Selected`;
+            }
+        }
+        
+        // Individual checkboxes functionality
+        compareCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateCompareButton();
+            });
+        });
+        
+        // Initialize button state
+        updateCompareButton();
+    }
     {% if similar_count > 0 %}
     // Risk Rating Distribution Chart
     const riskRatingCtx = document.getElementById('riskRatingChart').getContext('2d');
