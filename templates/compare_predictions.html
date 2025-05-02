@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+  .comparison-card {
+    transition: all 0.3s ease;
+  }
+  .comparison-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+  .risk-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+  }
+  .risk-low {
+    background-color: var(--bs-success);
+  }
+  .risk-medium {
+    background-color: var(--bs-warning);
+  }
+  .risk-high {
+    background-color: var(--bs-danger);
+  }
+  .metric-card {
+    border-radius: 10px;
+    height: 100%;
+  }
+  .comparison-header {
+    position: sticky;
+    top: 0;
+    background-color: var(--bs-body-bg);
+    z-index: 10;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .key-metric {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  .key-metric-label {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+  }
+  .metric-difference {
+    font-size: 0.8rem;
+  }
+  .positive-change {
+    color: var(--bs-success);
+  }
+  .negative-change {
+    color: var(--bs-danger);
+  }
+  .neutral-change {
+    color: var(--bs-info);
+  }
+  .highlight-best {
+    border: 2px solid var(--bs-success);
+  }
+</style>
+{% endblock %}
+
+{% block page_title %}Compare Loan Predictions{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('loan.history') }}" class="btn btn-secondary">
+  <i class="fas fa-arrow-left"></i> Back to History
+</a>
+{% endblock %}
+
+{% block content %}
+{% if applications|length == 0 %}
+<div class="alert alert-info">
+  <i class="fas fa-info-circle"></i> No applications available for comparison.
+  <a href="{{ url_for('loan.history') }}" class="alert-link">Return to loan history</a> to select applications to compare.
+</div>
+{% else %}
+<!-- Comparison Summary -->
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Comparison Summary</h5>
+        <p class="card-text">
+          Comparing {{ applications|length }} loan application{% if applications|length > 1 %}s{% endif %}.
+          Use this comparison to understand how different factors affect your loan application risk assessment.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Comparison -->
+<div class="row">
+  {% for app in applications %}
+  <div class="col-md-{{ 12 // applications|length }} mb-4">
+    <div class="card comparison-card {% if app.risk_rating <= 3 %}highlight-best{% endif %}">
+      <div class="card-header bg-{{ 'success' if app.recommendation == 'Approve' else 'danger' if app.recommendation == 'Reject' else 'warning' }} text-white">
+        <h5 class="mb-0">
+          <span class="risk-indicator risk-{{ 'low' if app.risk_rating <= 3 else 'medium' if app.risk_rating <= 7 else 'high' }}"></span>
+          Application #{{ app.id }}
+        </h5>
+        <small>{{ app.date.strftime('%B %d, %Y') }}</small>
+      </div>
+      <div class="card-body">
+        <!-- Key Metrics -->
+        <div class="row mb-4">
+          <div class="col-6 text-center">
+            <div class="key-metric-label">Risk Rating</div>
+            <div class="key-metric">{{ app.risk_rating }} / 10</div>
+            <div class="small text-muted">
+              {{ 'Low' if app.risk_rating <= 3 else 'Medium' if app.risk_rating <= 7 else 'High' }} Risk
+            </div>
+          </div>
+          <div class="col-6 text-center">
+            <div class="key-metric-label">Default Probability</div>
+            <div class="key-metric">{{ (app.probability_of_default * 100)|round(1) }}%</div>
+            <div class="small text-muted">
+              {{ 'Very Low' if app.probability_of_default < 0.05 else 'Low' if app.probability_of_default < 0.1 else 'Moderate' if app.probability_of_default < 0.2 else 'High' if app.probability_of_default < 0.3 else 'Very High' }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Loan Details -->
+        <div class="mb-3">
+          <h6>Loan Details</h6>
+          <table class="table table-sm">
+            <tbody>
+              <tr>
+                <td>Amount</td>
+                <td class="text-end">${{ app.loan_amount|round|int|format(',d') }}</td>
+              </tr>
+              <tr>
+                <td>Term</td>
+                <td class="text-end">{{ app.loan_term }} months</td>
+              </tr>
+              <tr>
+                <td>Purpose</td>
+                <td class="text-end">{{ app.loan_purpose|title }}</td>
+              </tr>
+              <tr>
+                <td>Status</td>
+                <td class="text-end">
+                  <span class="badge bg-{{ 'success' if app.status == 'Approved' else 'danger' if app.status == 'Rejected' else 'warning' }}">
+                    {{ app.status }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Financial Metrics -->
+        <div class="mb-3">
+          <h6>Financial Metrics</h6>
+          <table class="table table-sm">
+            <tbody>
+              <tr>
+                <td>Credit Score</td>
+                <td class="text-end">{{ app.credit_score }}</td>
+              </tr>
+              <tr>
+                <td>Annual Income</td>
+                <td class="text-end">${{ app.annual_income|round|int|format(',d') }}</td>
+              </tr>
+              <tr>
+                <td>Monthly Expenses</td>
+                <td class="text-end">${{ app.monthly_expenses|round|int|format(',d') }}</td>
+              </tr>
+              <tr>
+                <td>Debt-to-Income</td>
+                <td class="text-end">{{ app.debt_to_income_ratio }}%</td>
+              </tr>
+              <tr>
+                <td>Loan-to-Income</td>
+                <td class="text-end">{{ app.loan_to_income_ratio }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Risk Assessment -->
+        <div>
+          <h6>Risk Assessment</h6>
+          <table class="table table-sm">
+            <tbody>
+              <tr>
+                <td>Expected Loss</td>
+                <td class="text-end">${{ (app.expected_loss)|round|int|format(',d') }}</td>
+              </tr>
+              <tr>
+                <td>Loss Given Default</td>
+                <td class="text-end">{{ (app.loss_given_default * 100)|round(1) }}%</td>
+              </tr>
+              <tr>
+                <td>Recommendation</td>
+                <td class="text-end">
+                  <span class="badge bg-{{ 'success' if app.recommendation == 'Approve' else 'danger' if app.recommendation == 'Reject' else 'warning' }}">
+                    {{ app.recommendation }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Action Link -->
+        <div class="text-center mt-3">
+          <a href="{{ url_for('loan.predict', application_id=app.id) }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-chart-line"></i> View Full Details
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Comparison Analysis -->
+{% if applications|length > 1 %}
+<div class="row mt-4 mb-5">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Comparative Analysis</h5>
+      </div>
+      <div class="card-body">
+        <h6 class="mb-3">Key Differences</h6>
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>Metric</th>
+                {% for app in applications %}
+                <th class="text-center">App #{{ app.id }}</th>
+                {% endfor %}
+                <th class="text-center">Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Risk Rating</td>
+                {% for app in applications %}
+                <td class="text-center {{ 'table-success' if app.risk_rating == applications|map(attribute='risk_rating')|min }}">
+                  {{ app.risk_rating }} / 10
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  {{ (applications|map(attribute='risk_rating')|max - applications|map(attribute='risk_rating')|min)|round(1) }} points
+                </td>
+              </tr>
+              <tr>
+                <td>Default Probability</td>
+                {% for app in applications %}
+                <td class="text-center {{ 'table-success' if app.probability_of_default == applications|map(attribute='probability_of_default')|min }}">
+                  {{ (app.probability_of_default * 100)|round(1) }}%
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  {{ ((applications|map(attribute='probability_of_default')|max - applications|map(attribute='probability_of_default')|min) * 100)|round(1) }}%
+                </td>
+              </tr>
+              <tr>
+                <td>Credit Score</td>
+                {% for app in applications %}
+                <td class="text-center {{ 'table-success' if app.credit_score == applications|map(attribute='credit_score')|max }}">
+                  {{ app.credit_score }}
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  {{ applications|map(attribute='credit_score')|max - applications|map(attribute='credit_score')|min }} points
+                </td>
+              </tr>
+              <tr>
+                <td>Loan Amount</td>
+                {% for app in applications %}
+                <td class="text-center">
+                  ${{ app.loan_amount|round|int|format(',d') }}
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  ${{ (applications|map(attribute='loan_amount')|max - applications|map(attribute='loan_amount')|min)|round|int|format(',d') }}
+                </td>
+              </tr>
+              <tr>
+                <td>Debt-to-Income</td>
+                {% for app in applications %}
+                <td class="text-center {{ 'table-success' if app.debt_to_income_ratio == applications|map(attribute='debt_to_income_ratio')|min }}">
+                  {{ app.debt_to_income_ratio }}%
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  {{ (applications|map(attribute='debt_to_income_ratio')|max - applications|map(attribute='debt_to_income_ratio')|min)|round(1) }}%
+                </td>
+              </tr>
+              <tr>
+                <td>Loan-to-Income</td>
+                {% for app in applications %}
+                <td class="text-center {{ 'table-success' if app.loan_to_income_ratio == applications|map(attribute='loan_to_income_ratio')|min }}">
+                  {{ app.loan_to_income_ratio }}%
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  {{ (applications|map(attribute='loan_to_income_ratio')|max - applications|map(attribute='loan_to_income_ratio')|min)|round(1) }}%
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="alert alert-info mt-4">
+          <i class="fas fa-lightbulb me-2"></i>
+          <strong>Analysis:</strong>
+          {% if applications|map(attribute='risk_rating')|min <= 3 and applications|map(attribute='risk_rating')|max >= 7 %}
+          There is a significant difference in risk ratings between these applications.
+          Focus on improving your credit score and reducing your debt-to-income ratio to achieve better risk ratings.
+          {% elif applications|map(attribute='risk_rating')|max - applications|map(attribute='risk_rating')|min < 2 %}
+          These applications have similar risk profiles despite their differences.
+          Small adjustments to loan amount or term may help optimize your application.
+          {% else %}
+          These applications show moderate differences in risk ratings.
+          Consider the loan with the lowest risk rating for better approval chances.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Recommendation Section -->
+<div class="row mb-5">
+  <div class="col-md-12">
+    <div class="card bg-light">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="fas fa-star text-warning me-2"></i>
+          Recommendation
+        </h5>
+        <p class="card-text">
+          {% if applications|selectattr('risk_rating', 'le', 3)|list|length > 0 %}
+          Your best option appears to be Application #{{ applications|selectattr('risk_rating', 'le', 3)|map(attribute='id')|first }},
+          which has the lowest risk rating ({{ applications|selectattr('risk_rating', 'le', 3)|map(attribute='risk_rating')|first }}/10)
+          and the best chance of approval.
+          {% else %}
+          All applications have moderate to high risk ratings. 
+          Consider adjusting your loan amount, improving your credit score, or reducing your debt-to-income ratio
+          before submitting a new application for better approval chances.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Additional JavaScript for enhanced interactivity can be added here
+  });
+</script>
+{% endblock %}

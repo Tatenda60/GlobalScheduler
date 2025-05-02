@@ -5,9 +5,14 @@
 {% block page_title %}Loan Application History{% endblock %}
 
 {% block page_actions %}
-<a href="{{ url_for('loan.apply') }}" class="btn btn-primary">
-    <i class="fas fa-plus"></i> New Application
-</a>
+<div class="btn-group">
+    <a href="{{ url_for('loan.apply') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New Application
+    </a>
+    <button type="submit" form="compareForm" id="compareBtn" class="btn btn-secondary" disabled>
+        <i class="fas fa-balance-scale"></i> Compare Selected
+    </button>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -16,10 +21,16 @@
         <div class="card">
             <div class="card-body">
                 {% if applications %}
+                    <form id="compareForm" action="{{ url_for('loan.compare_predictions') }}" method="get">
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
+                                    <th>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll">
+                                        </div>
+                                    </th>
                                     <th>ID</th>
                                     <th>Date</th>
                                     <th>Loan Amount</th>
@@ -34,6 +45,13 @@
                             <tbody>
                                 {% for app in applications %}
                                 <tr>
+                                    <td>
+                                        {% if app.risk_assessment %}
+                                        <div class="form-check">
+                                            <input class="form-check-input app-checkbox" type="checkbox" name="ids" value="{{ app.id }}">
+                                        </div>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ app.id }}</td>
                                     <td>{{ app.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td>${{ app.loan_amount | round(2) }}</td>
@@ -89,6 +107,7 @@
                             </tbody>
                         </table>
                     </div>
+                    </form>
                 {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-file-invoice-dollar fa-4x text-muted mb-3"></i>

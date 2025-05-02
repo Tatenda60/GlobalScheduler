@@ -126,6 +126,14 @@ def predict(application_id):
     if not risk_assessment:
         flash('No risk assessment found for this application.', 'danger')
         return redirect(url_for('loan.index'))
+        
+    # Get recent applications for comparison in sidebar
+    recent_applications = LoanApplication.query.filter_by(user_id=current_user.id)\
+        .filter(LoanApplication.id != application_id)\
+        .join(RiskAssessment)\
+        .order_by(LoanApplication.created_at.desc())\
+        .limit(5)\
+        .all()
     
     # Gather comparison data for visualization
     # Get average risk metrics from similar applications by credit score range
@@ -226,6 +234,7 @@ def predict(application_id):
         title='Loan Prediction Result',
         application=application,
         assessment=risk_assessment,
+        recent_applications=recent_applications,
         # Comparison data
         avg_pd=avg_pd,
         avg_lgd=avg_lgd,
@@ -238,6 +247,64 @@ def predict(application_id):
         income_expenses_data=income_expenses_data,
         current_app_metrics=current_app_metrics,
         similar_count=count
+    )
+
+
+@bp.route('/compare-predictions')
+@login_required
+def compare_predictions():
+    """Compare multiple loan predictions side by side"""
+    # Get application IDs from query parameters
+    application_ids = request.args.getlist('ids', type=int)
+    
+    if not application_ids:
+        flash('No applications selected for comparison.', 'warning')
+        return redirect(url_for('loan.history'))
+    
+    # Get the applications and ensure they belong to the current user
+    applications = []
+    for app_id in application_ids:
+        application = LoanApplication.query.get(app_id)
+        if application and (application.user_id == current_user.id or current_user.has_staff_privileges()):
+            applications.append(application)
+    
+    if not applications:
+        flash('No valid applications found for comparison.', 'warning')
+        return redirect(url_for('loan.history'))
+    
+    # Prepare data for comparison
+    comparison_data = []
+    for app in applications:
+        if not app.risk_assessment:
+            continue
+            
+        app_data = {
+            'id': app.id,
+            'date': app.created_at,
+            'loan_amount': app.loan_amount,
+            'loan_term': app.loan_term,
+            'loan_purpose': app.loan_purpose,
+            'status': app.status,
+            'credit_score': app.credit_score,
+            'annual_income': app.annual_income,
+            'monthly_expenses': app.monthly_expenses,
+            'debt_to_income_ratio': round((app.existing_debt / app.annual_income * 100) if app.annual_income > 0 else 0, 2),
+            'loan_to_income_ratio': round((app.loan_amount / app.annual_income * 100) if app.annual_income > 0 else 0, 2),
+            'risk_rating': app.risk_assessment.risk_rating,
+            'probability_of_default': app.risk_assessment.probability_of_default,
+            'loss_given_default': app.risk_assessment.loss_given_default,
+            'expected_loss': app.risk_assessment.expected_loss,
+            'recommendation': app.risk_assessment.recommendation
+        }
+        comparison_data.append(app_data)
+    
+    # Sort by risk rating (ascending) then by date (descending)
+    comparison_data.sort(key=lambda x: (x['risk_rating'], -int(x['date'].timestamp())))
+    
+    return render_template(
+        'compare_predictions.html',
+        title='Compare Predictions',
+        applications=comparison_data
     )
 
 
