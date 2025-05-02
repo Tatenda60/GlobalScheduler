@@ -1,149 +1,150 @@
 """
 Administrative routes for bank staff, loan officers, and system administrators.
 """
-from datetime import datetime
-from flask import (
-    Blueprint, render_template, redirect, url_for, 
-    flash, request, current_app, jsonify
-)
+import json
+from datetime import datetime, timedelta
+from functools import wraps
+
+from flask import Blueprint, render_template, flash, redirect, url_for, request, jsonify
 from flask_login import login_required, current_user
+from sqlalchemy import func, case, desc, asc
+
 from app import db
 from models import User, LoanApplication, RiskAssessment
-from functools import wraps
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-# Custom decorator for admin access
 def admin_required(f):
+    """
+    Decorator to restrict access to admin users only
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.has_staff_privileges():
-            flash('You do not have permission to access this page.', 'danger')
+        if not current_user.is_admin():
+            flash('Access denied. Admin privileges required.', 'danger')
             return redirect(url_for('loan.index'))
         return f(*args, **kwargs)
     return decorated_function
 
-@bp.route('/')
+def staff_required(f):
+    """
+    Decorator to restrict access to staff users (admin, loan officer, staff)
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.has_staff_privileges():
+            flash('Access denied. Staff privileges required.', 'danger')
+            return redirect(url_for('loan.index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@bp.route('/dashboard')
 @login_required
-@admin_required
+@staff_required
 def dashboard():
     """Administrative dashboard with loan statistics and overview"""
-    # Get loan application statistics
+    # Application statistics
     total_applications = LoanApplication.query.count()
     pending_applications = LoanApplication.query.filter_by(status='Pending').count()
     approved_applications = LoanApplication.query.filter_by(status='Approved').count()
     rejected_applications = LoanApplication.query.filter_by(status='Rejected').count()
     under_review_applications = LoanApplication.query.filter_by(status='Under Review').count()
     
-    # Get the most recent loan applications
+    # Recent applications
     recent_applications = LoanApplication.query.order_by(LoanApplication.created_at.desc()).limit(10).all()
     
-    # Get statistics about loan officers/staff activity
-    staff_users = User.query.filter(User.is_staff == True).all()
+    # User statistics
+    total_users = User.query.count()
+    customer_users = User.query.filter_by(role='customer').count()
+    staff_count = User.query.filter(User.is_staff).count()
     
-    # Admin-specific data
+    # Staff list for admin
+    staff_users = []
     if current_user.is_admin():
-        # Get user statistics
-        total_users = User.query.count()
-        customer_users = User.query.filter_by(role='customer').count()
-        staff_count = User.query.filter(User.is_staff == True).count()
-    else:
-        total_users = None
-        customer_users = None
-        staff_count = None
+        staff_users = User.query.filter(User.is_staff).all()
     
     return render_template(
         'admin/dashboard.html',
-        title='Admin Dashboard',
         total_applications=total_applications,
         pending_applications=pending_applications,
         approved_applications=approved_applications,
         rejected_applications=rejected_applications,
         under_review_applications=under_review_applications,
         recent_applications=recent_applications,
-        staff_users=staff_users,
         total_users=total_users,
         customer_users=customer_users,
-        staff_count=staff_count
+        staff_count=staff_count,
+        staff_users=staff_users
     )
 
 @bp.route('/applications')
 @login_required
-@admin_required
+@staff_required
 def all_applications():
     """View all loan applications in the system"""
-    # Get filter parameters
+    page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', 'all')
     sort_by = request.args.get('sort', 'created_at')
     order = request.args.get('order', 'desc')
     
-    # Base query
+    # Build query
     query = LoanApplication.query
     
-    # Apply status filter if provided
+    # Apply status filter
     if status_filter != 'all':
-        query = query.filter_by(status=status_filter)
+        query = query.filter(LoanApplication.status == status_filter)
     
     # Apply sorting
     if sort_by == 'created_at':
         if order == 'desc':
             query = query.order_by(LoanApplication.created_at.desc())
         else:
-            query = query.order_by(LoanApplication.created_at)
+            query = query.order_by(LoanApplication.created_at.asc())
     elif sort_by == 'loan_amount':
         if order == 'desc':
             query = query.order_by(LoanApplication.loan_amount.desc())
         else:
-            query = query.order_by(LoanApplication.loan_amount)
+            query = query.order_by(LoanApplication.loan_amount.asc())
     
-    # Get all applications with pagination
-    page = request.args.get('page', 1, type=int)
+    # Paginate results
     applications = query.paginate(page=page, per_page=20)
     
     return render_template(
         'admin/applications.html',
-        title='All Loan Applications',
         applications=applications,
         status_filter=status_filter,
         sort_by=sort_by,
         order=order
     )
 
-@bp.route('/application/<int:application_id>')
+@bp.route('/applications/<int:application_id>')
 @login_required
-@admin_required
+@staff_required
 def application_details(application_id):
     """View detailed information about a specific loan application"""
     application = LoanApplication.query.get_or_404(application_id)
-    
-    # Get the applicant details
     applicant = User.query.get(application.user_id)
-    
-    # Get risk assessment
-    risk_assessment = application.risk_assessment
-    
-    # Get who handled the loan, if applicable
-    handler = None
-    if application.handled_by_id:
-        handler = User.query.get(application.handled_by_id)
+    risk_assessment = RiskAssessment.query.filter_by(loan_application_id=application_id).first()
     
     return render_template(
         'admin/application_details.html',
-        title='Loan Application Details',
         application=application,
         applicant=applicant,
-        risk_assessment=risk_assessment,
-        handler=handler
+        risk_assessment=risk_assessment
     )
 
-@bp.route('/application/<int:application_id>/decision', methods=['POST'])
+@bp.route('/applications/<int:application_id>/decision', methods=['POST'])
 @login_required
-@admin_required
+@staff_required
 def make_decision(application_id):
     """Make a decision (approve/reject) on a loan application"""
     application = LoanApplication.query.get_or_404(application_id)
     
-    # Get form data
+    # Check if the application is already decided
+    if application.status not in ['Pending', 'Under Review']:
+        flash('This application has already been processed.', 'warning')
+        return redirect(url_for('admin.application_details', application_id=application_id))
+    
     decision = request.form.get('decision')
     notes = request.form.get('notes', '')
     
@@ -151,14 +152,19 @@ def make_decision(application_id):
         flash('Invalid decision.', 'danger')
         return redirect(url_for('admin.application_details', application_id=application_id))
     
-    # Update application
+    # Update application status
     application.status = decision
     application.handled_by_id = current_user.id
     application.handled_at = datetime.utcnow()
     application.decision_notes = notes
-    db.session.commit()
     
-    flash(f'Loan application has been {decision.lower()}.', 'success')
+    try:
+        db.session.commit()
+        flash(f'Application {decision.lower()} successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing application: {str(e)}', 'danger')
+    
     return redirect(url_for('admin.application_details', application_id=application_id))
 
 @bp.route('/users')
@@ -166,147 +172,148 @@ def make_decision(application_id):
 @admin_required
 def users():
     """View and manage users (admin only)"""
-    if not current_user.is_admin():
-        flash('You do not have permission to access this page.', 'danger')
-        return redirect(url_for('admin.dashboard'))
-    
-    # Get all users with pagination
     page = request.args.get('page', 1, type=int)
-    all_users = User.query.paginate(page=page, per_page=20)
+    users_pagination = User.query.order_by(User.created_at.desc()).paginate(page=page, per_page=20)
     
-    return render_template(
-        'admin/users.html',
-        title='User Management',
-        users=all_users
-    )
+    return render_template('admin/users.html', users=users_pagination)
 
-@bp.route('/user/<int:user_id>/role', methods=['POST'])
+@bp.route('/users/<int:user_id>/role', methods=['POST'])
 @login_required
 @admin_required
 def update_user_role(user_id):
     """Update a user's role (admin only)"""
-    if not current_user.is_admin():
-        flash('You do not have permission to perform this action.', 'danger')
-        return redirect(url_for('admin.dashboard'))
-    
     user = User.query.get_or_404(user_id)
     new_role = request.form.get('role')
     
-    # Validate role
     if new_role not in ['customer', 'staff', 'officer', 'admin']:
-        flash('Invalid role.', 'danger')
+        flash('Invalid role selected.', 'danger')
         return redirect(url_for('admin.users'))
     
     # Update user role
     user.role = new_role
-    user.is_staff = (new_role in ['staff', 'officer', 'admin'])
-    db.session.commit()
+    user.is_staff = new_role in ['staff', 'officer', 'admin']
     
-    flash(f'User role updated to {new_role}.', 'success')
+    try:
+        db.session.commit()
+        flash(f'Role for {user.username} updated to {new_role}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating role: {str(e)}', 'danger')
+    
     return redirect(url_for('admin.users'))
 
 @bp.route('/insights')
 @login_required
-@admin_required
+@staff_required
 def insights():
     """View data insights and analytics"""
-    # Calculate approval rate over time
-    # This would normally be more sophisticated with proper time series analysis
-    applications_by_month = {}
-    approvals_by_month = {}
+    # Prepare data for charts
     
-    applications = LoanApplication.query.all()
-    for app in applications:
-        month_key = app.created_at.strftime('%Y-%m')
-        applications_by_month[month_key] = applications_by_month.get(month_key, 0) + 1
-        
-        if app.status == 'Approved':
-            approvals_by_month[month_key] = approvals_by_month.get(month_key, 0) + 1
-    
-    # Calculate approval rate
-    approval_rates = {}
-    for month in applications_by_month:
-        approval_rates[month] = (approvals_by_month.get(month, 0) / applications_by_month[month]) * 100
-    
-    # Sort by month
-    months = sorted(approval_rates.keys())
-    approval_rate_data = [approval_rates.get(month, 0) for month in months]
-    
-    # Get credit score distribution
+    # Credit score distribution
     credit_score_ranges = {
-        '300-550': 0,
-        '551-650': 0,
-        '651-750': 0,
-        '751-850': 0
+        '300-579 (Poor)': 0,
+        '580-669 (Fair)': 0,
+        '670-739 (Good)': 0,
+        '740-850 (Excellent)': 0
     }
     
-    for app in applications:
-        if app.credit_score <= 550:
-            credit_score_ranges['300-550'] += 1
-        elif app.credit_score <= 650:
-            credit_score_ranges['551-650'] += 1
-        elif app.credit_score <= 750:
-            credit_score_ranges['651-750'] += 1
-        else:
-            credit_score_ranges['751-850'] += 1
+    credit_scores = db.session.query(LoanApplication.credit_score).all()
+    for score in credit_scores:
+        score = score[0]
+        if 300 <= score <= 579:
+            credit_score_ranges['300-579 (Poor)'] += 1
+        elif 580 <= score <= 669:
+            credit_score_ranges['580-669 (Fair)'] += 1
+        elif 670 <= score <= 739:
+            credit_score_ranges['670-739 (Good)'] += 1
+        elif 740 <= score <= 850:
+            credit_score_ranges['740-850 (Excellent)'] += 1
+    
+    # Approval rate by month
+    # Get data for the past 6 months
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
+    
+    # SQL Alchemy ORM query to get monthly approval rates
+    monthly_stats = db.session.query(
+        func.strftime('%Y-%m', LoanApplication.created_at).label('month'),
+        func.count(LoanApplication.id).label('total'),
+        func.sum(case([(LoanApplication.status == 'Approved', 1)], else_=0)).label('approved')
+    ).filter(LoanApplication.created_at >= six_months_ago).group_by('month').order_by('month').all()
+    
+    months = []
+    approval_rate_data = []
+    
+    for stat in monthly_stats:
+        months.append(stat.month)
+        approval_rate = (stat.approved / stat.total) * 100 if stat.total > 0 else 0
+        approval_rate_data.append(approval_rate)
     
     return render_template(
         'admin/insights.html',
-        title='Loan Insights & Analytics',
+        credit_score_ranges=credit_score_ranges,
         months=months,
-        approval_rate_data=approval_rate_data,
-        credit_score_ranges=credit_score_ranges
+        approval_rate_data=approval_rate_data
     )
 
 @bp.route('/api/approval-stats')
 @login_required
-@admin_required
+@staff_required
 def approval_stats_api():
     """API endpoint for approval statistics"""
-    status_counts = {
-        'Pending': LoanApplication.query.filter_by(status='Pending').count(),
-        'Approved': LoanApplication.query.filter_by(status='Approved').count(),
-        'Rejected': LoanApplication.query.filter_by(status='Rejected').count(),
-        'Under Review': LoanApplication.query.filter_by(status='Under Review').count()
-    }
+    stats = {}
     
-    return jsonify(status_counts)
+    # Count applications by status
+    statuses = db.session.query(
+        LoanApplication.status, 
+        func.count(LoanApplication.id)
+    ).group_by(LoanApplication.status).all()
+    
+    for status, count in statuses:
+        stats[status] = count
+    
+    return jsonify(stats)
 
 @bp.route('/api/risk-by-income')
 @login_required
-@admin_required
+@staff_required
 def risk_by_income_api():
     """API endpoint for risk by income data"""
-    # Group applications by income range and calculate average risk rating
-    income_ranges = {
-        '0-50k': {'count': 0, 'risk_sum': 0},
-        '50k-75k': {'count': 0, 'risk_sum': 0},
-        '75k-100k': {'count': 0, 'risk_sum': 0},
-        '100k+': {'count': 0, 'risk_sum': 0}
-    }
+    # Get income brackets and average risk ratings
+    income_risk = {}
     
-    applications = LoanApplication.query.all()
-    for app in applications:
-        if app.risk_assessment:
-            if app.annual_income < 50000:
-                income_ranges['0-50k']['count'] += 1
-                income_ranges['0-50k']['risk_sum'] += app.risk_assessment.risk_rating
-            elif app.annual_income < 75000:
-                income_ranges['50k-75k']['count'] += 1
-                income_ranges['50k-75k']['risk_sum'] += app.risk_assessment.risk_rating
-            elif app.annual_income < 100000:
-                income_ranges['75k-100k']['count'] += 1
-                income_ranges['75k-100k']['risk_sum'] += app.risk_assessment.risk_rating
-            else:
-                income_ranges['100k+']['count'] += 1
-                income_ranges['100k+']['risk_sum'] += app.risk_assessment.risk_rating
+    # Define income brackets
+    brackets = [
+        (0, 25000, 'Under $25K'),
+        (25000, 50000, '$25K-$50K'),
+        (50000, 75000, '$50K-$75K'),
+        (75000, 100000, '$75K-$100K'),
+        (100000, float('inf'), 'Over $100K')
+    ]
     
-    # Calculate averages
-    avg_risk_by_income = {}
-    for range_name, data in income_ranges.items():
-        if data['count'] > 0:
-            avg_risk_by_income[range_name] = data['risk_sum'] / data['count']
+    # Query for applications with risk assessments
+    applications = db.session.query(
+        LoanApplication.annual_income,
+        RiskAssessment.risk_rating
+    ).join(
+        RiskAssessment, 
+        LoanApplication.id == RiskAssessment.loan_application_id
+    ).all()
+    
+    # Sort applications into brackets
+    bracket_data = {bracket[2]: [] for bracket in brackets}
+    
+    for income, risk_rating in applications:
+        for min_val, max_val, bracket_name in brackets:
+            if min_val <= income < max_val:
+                bracket_data[bracket_name].append(risk_rating)
+                break
+    
+    # Calculate average risk rating for each bracket
+    for bracket_name, ratings in bracket_data.items():
+        if ratings:
+            avg_rating = sum(ratings) / len(ratings)
+            income_risk[bracket_name] = round(avg_rating, 1)
         else:
-            avg_risk_by_income[range_name] = 0
+            income_risk[bracket_name] = 0
     
-    return jsonify(avg_risk_by_income)
+    return jsonify(income_risk)

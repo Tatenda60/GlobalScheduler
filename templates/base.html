@@ -33,6 +33,39 @@
                         </div>
                         <hr>
                         <ul class="nav flex-column">
+                            {% if current_user.has_staff_privileges() %}
+                            <!-- Admin Navigation for Staff Users -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.path == url_for('admin.dashboard') %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">
+                                    <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.path == url_for('admin.all_applications') %}active{% endif %}" href="{{ url_for('admin.all_applications') }}">
+                                    <i class="fas fa-clipboard-list"></i> All Applications
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.path == url_for('admin.insights') %}active{% endif %}" href="{{ url_for('admin.insights') }}">
+                                    <i class="fas fa-chart-pie"></i> Analytics
+                                </a>
+                            </li>
+                            {% if current_user.is_admin() %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.path == url_for('admin.users') %}active{% endif %}" href="{{ url_for('admin.users') }}">
+                                    <i class="fas fa-users"></i> User Management
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('loan.index') }}">
+                                    <i class="fas fa-arrow-right"></i> User View
+                                </a>
+                            </li>
+                            <hr>
+                            {% endif %}
+                            
+                            <!-- Customer Navigation -->
                             <li class="nav-item">
                                 <a class="nav-link {% if request.path == url_for('loan.index') %}active{% endif %}" href="{{ url_for('loan.index') }}">
                                     <i class="fas fa-tachometer-alt"></i> Dashboard

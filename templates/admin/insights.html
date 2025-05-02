@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Loan Insights & Analytics</h2>
+    
+    <div class="row">
+        <!-- Approval Rates Over Time -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Approval Rates Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="approvalRateChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Credit Score Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Credit Score Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="creditScoreChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Application Status -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Application Status</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Average Risk by Income -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Average Risk Rating by Income</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="riskByIncomeChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Risk Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Key Risk Metrics</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 text-center mb-3">
+                    <h6>Average PD</h6>
+                    <div class="fs-2" id="avgPD">Loading...</div>
+                    <small class="text-muted">Probability of Default</small>
+                </div>
+                <div class="col-md-3 text-center mb-3">
+                    <h6>Average LGD</h6>
+                    <div class="fs-2" id="avgLGD">Loading...</div>
+                    <small class="text-muted">Loss Given Default</small>
+                </div>
+                <div class="col-md-3 text-center mb-3">
+                    <h6>Average EAD</h6>
+                    <div class="fs-2" id="avgEAD">Loading...</div>
+                    <small class="text-muted">Exposure at Default</small>
+                </div>
+                <div class="col-md-3 text-center mb-3">
+                    <h6>Average Expected Loss</h6>
+                    <div class="fs-2" id="avgEL">Loading...</div>
+                    <small class="text-muted">Expected Loss</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Risk Decision Analysis -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Risk Decision Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-center mb-3">Model Recommendation vs. Final Decision</h6>
+                    <canvas id="recommendationChart" width="400" height="300"></canvas>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-center mb-3">Risk Rating Distribution</h6>
+                    <canvas id="riskRatingChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Approval Rate Over Time Chart
+        const approvalRateChart = document.getElementById('approvalRateChart').getContext('2d');
+        new Chart(approvalRateChart, {
+            type: 'line',
+            data: {
+                labels: {{ months|tojson }},
+                datasets: [{
+                    label: 'Approval Rate (%)',
+                    data: {{ approval_rate_data|tojson }},
+                    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 2,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Approval Rate (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Month'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Loan Approval Rate Trend'
+                    }
+                }
+            }
+        });
+        
+        // Credit Score Distribution Chart
+        const creditScoreChart = document.getElementById('creditScoreChart').getContext('2d');
+        new Chart(creditScoreChart, {
+            type: 'bar',
+            data: {
+                labels: Object.keys({{ credit_score_ranges|tojson }}),
+                datasets: [{
+                    label: 'Number of Applications',
+                    data: Object.values({{ credit_score_ranges|tojson }}),
+                    backgroundColor: [
+                        'rgba(220, 53, 69, 0.7)',
+                        'rgba(255, 193, 7, 0.7)',
+                        'rgba(23, 162, 184, 0.7)',
+                        'rgba(40, 167, 69, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(23, 162, 184, 1)',
+                        'rgba(40, 167, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Applications'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Credit Score Range'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Distribution by Credit Score'
+                    }
+                }
+            }
+        });
+        
+        // Fetch application status data
+        fetch('/admin/api/approval-stats')
+            .then(response => response.json())
+            .then(data => {
+                // Status Chart
+                const statusChart = document.getElementById('statusChart').getContext('2d');
+                new Chart(statusChart, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(data),
+                        datasets: [{
+                            data: Object.values(data),
+                            backgroundColor: [
+                                '#ffc107', // warning - Pending
+                                '#28a745', // success - Approved
+                                '#dc3545', // danger - Rejected
+                                '#17a2b8'  // info - Under Review
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Application Status Distribution'
+                            }
+                        }
+                    }
+                });
+            });
+            
+        // Fetch risk by income data
+        fetch('/admin/api/risk-by-income')
+            .then(response => response.json())
+            .then(data => {
+                // Risk by Income Chart
+                const riskByIncomeChart = document.getElementById('riskByIncomeChart').getContext('2d');
+                new Chart(riskByIncomeChart, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data),
+                        datasets: [{
+                            label: 'Average Risk Rating',
+                            data: Object.values(data),
+                            backgroundColor: 'rgba(23, 162, 184, 0.7)',
+                            borderColor: 'rgba(23, 162, 184, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 10,
+                                title: {
+                                    display: true,
+                                    text: 'Average Risk Rating (1-10)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Annual Income Range'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Average Risk Rating by Income Level'
+                            }
+                        }
+                    }
+                });
+                
+                // For demonstration, we'll populate the risk metrics with placeholder data
+                // In a real app, you'd fetch this data from an API
+                document.getElementById('avgPD').textContent = '15.2%';
+                document.getElementById('avgLGD').textContent = '45.7%';
+                document.getElementById('avgEAD').textContent = '$35,420';
+                document.getElementById('avgEL').textContent = '$2,450';
+                
+                // Risk Rating Distribution Chart
+                const riskRatingChart = document.getElementById('riskRatingChart').getContext('2d');
+                new Chart(riskRatingChart, {
+                    type: 'bar',
+                    data: {
+                        labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+                        datasets: [{
+                            label: 'Number of Applications',
+                            data: [5, 8, 12, 15, 20, 18, 12, 8, 5, 2],
+                            backgroundColor: 'rgba(108, 117, 125, 0.7)',
+                            borderColor: 'rgba(108, 117, 125, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Number of Applications'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Risk Rating (1-10)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Distribution by Risk Rating'
+                            }
+                        }
+                    }
+                });
+                
+                // Model Recommendation vs. Final Decision Chart
+                const recommendationChart = document.getElementById('recommendationChart').getContext('2d');
+                new Chart(recommendationChart, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Approve', 'Review', 'Reject'],
+                        datasets: [
+                            {
+                                label: 'Model Recommendation',
+                                data: [45, 30, 25],
+                                backgroundColor: 'rgba(23, 162, 184, 0.7)',
+                                borderColor: 'rgba(23, 162, 184, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Final Decision',
+                                data: [40, 20, 40],
+                                backgroundColor: 'rgba(108, 117, 125, 0.7)',
+                                borderColor: 'rgba(108, 117, 125, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Number of Applications'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Model Recommendation vs. Final Decision'
+                            }
+                        }
+                    }
+                });
+            });
+    });
+</script>
+{% endblock %}
