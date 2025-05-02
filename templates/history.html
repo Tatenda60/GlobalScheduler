@@ -27,6 +27,7 @@
                                     <th>Term</th>
                                     <th>Risk Rating</th>
                                     <th>Status</th>
+                                    <th>Handled By</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -66,6 +67,16 @@
                                             <span class="badge bg-warning loan-status-badge">Under Review</span>
                                         {% else %}
                                             <span class="badge bg-secondary loan-status-badge">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if app.handled_by %}
+                                            {{ app.handled_by.get_display_name() }}
+                                            {% if app.handled_at %}
+                                                <br><small class="text-muted">{{ app.handled_at.strftime('%Y-%m-%d') }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">--</span>
                                         {% endif %}
                                     </td>
                                     <td>

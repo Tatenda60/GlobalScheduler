@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Loan Reports{% endblock %}
+
+{% block page_title %}Loan Reports & Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Status breakdown -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Application Status Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Risk category breakdown -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Risk Category Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="riskChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Income vs Approval -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Income vs Approval Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="incomeChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Credit Score Distribution -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Credit Score Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="creditScoreChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Loan Summary Metrics -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Loan Summary Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="card-metric">
+                            <h6 class="text-muted">Total Applications</h6>
+                            <h2 class="mb-0">{{ total_applications }}</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="card-metric">
+                            <h6 class="text-muted">Average Loan Amount</h6>
+                            <h2 class="mb-0">${{ avg_loan_amount|round(2) }}</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="card-metric">
+                            <h6 class="text-muted">Average Credit Score</h6>
+                            <h2 class="mb-0">{{ avg_credit_score|round(0) }}</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="card-metric">
+                            <h6 class="text-muted">Approval Rate</h6>
+                            <h2 class="mb-0">{{ (approval_rate * 100)|round(1) }}%</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approval Predictions -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Loan Approval Predictions by Factors</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-6 mb-3">
+                        <canvas id="debtToIncomeChart" height="250"></canvas>
+                    </div>
+                    <div class="col-lg-6 mb-3">
+                        <canvas id="loanAmountToIncomeChart" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Status breakdown chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ status_labels|tojson }},
+            datasets: [{
+                data: {{ status_data|tojson }},
+                backgroundColor: [
+                    '#6c757d', // Pending - Secondary
+                    '#28a745', // Approved - Success
+                    '#dc3545', // Rejected - Danger
+                    '#ffc107'  // Under Review - Warning
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                title: {
+                    display: true,
+                    text: 'Loan Applications by Status'
+                }
+            }
+        }
+    });
+    
+    // Risk category chart
+    const riskCtx = document.getElementById('riskChart').getContext('2d');
+    new Chart(riskCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ risk_labels|tojson }},
+            datasets: [{
+                data: {{ risk_data|tojson }},
+                backgroundColor: [
+                    '#28a745', // Low Risk - Success
+                    '#ffc107', // Medium Risk - Warning
+                    '#dc3545'  // High Risk - Danger
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                title: {
+                    display: true,
+                    text: 'Applications by Risk Category'
+                }
+            }
+        }
+    });
+    
+    // Income vs Approval chart
+    const incomeCtx = document.getElementById('incomeChart').getContext('2d');
+    new Chart(incomeCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ income_brackets|tojson }},
+            datasets: [{
+                label: 'Approved',
+                data: {{ income_approved|tojson }},
+                backgroundColor: '#28a745'
+            }, {
+                label: 'Rejected',
+                data: {{ income_rejected|tojson }},
+                backgroundColor: '#dc3545'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Annual Income'
+                    }
+                },
+                y: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Applications'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Income vs Approval Status'
+                }
+            }
+        }
+    });
+    
+    // Credit Score Distribution
+    const creditScoreCtx = document.getElementById('creditScoreChart').getContext('2d');
+    new Chart(creditScoreCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ credit_score_labels|tojson }},
+            datasets: [{
+                label: 'Number of Applications',
+                data: {{ credit_score_data|tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Applications'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Credit Score Range'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Debt-to-Income vs Approval
+    const dtiCtx = document.getElementById('debtToIncomeChart').getContext('2d');
+    new Chart(dtiCtx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Approved',
+                data: {{ dti_approved|tojson }},
+                backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Rejected',
+                data: {{ dti_rejected|tojson }},
+                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Debt-to-Income Ratio (%)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Credit Score'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'DTI Ratio vs Credit Score by Approval Status'
+                }
+            }
+        }
+    });
+    
+    // Loan Amount to Income vs Approval
+    const loanToIncomeCtx = document.getElementById('loanAmountToIncomeChart').getContext('2d');
+    new Chart(loanToIncomeCtx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Approved',
+                data: {{ loan_to_income_approved|tojson }},
+                backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Rejected',
+                data: {{ loan_to_income_rejected|tojson }},
+                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Loan Amount to Annual Income Ratio (%)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Existing Debt ($)'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Loan-to-Income Ratio vs Existing Debt by Approval Status'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

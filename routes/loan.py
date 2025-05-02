@@ -145,6 +145,166 @@ def history():
         applications=applications
     )
 
+@bp.route('/reports')
+@login_required
+def reports():
+    """Display loan reports and analytics"""
+    # Get all applications for the current user
+    applications = LoanApplication.query.filter_by(user_id=current_user.id).all()
+    
+    # Statistics
+    total_applications = len(applications)
+    
+    # If no applications, return empty template
+    if total_applications == 0:
+        return render_template(
+            'reports.html',
+            title='Loan Reports',
+            total_applications=0,
+            avg_loan_amount=0,
+            avg_credit_score=0,
+            approval_rate=0,
+            status_labels=['No Data'],
+            status_data=[1],
+            risk_labels=['No Data'],
+            risk_data=[1],
+            income_brackets=['No Data'],
+            income_approved=[0],
+            income_rejected=[0],
+            credit_score_labels=['No Data'],
+            credit_score_data=[0],
+            dti_approved=[],
+            dti_rejected=[],
+            loan_to_income_approved=[],
+            loan_to_income_rejected=[]
+        )
+    
+    # Status breakdown
+    status_counts = {}
+    for app in applications:
+        status_counts[app.status] = status_counts.get(app.status, 0) + 1
+    
+    status_labels = list(status_counts.keys())
+    status_data = list(status_counts.values())
+    
+    # Risk category breakdown
+    risk_counts = {'Low Risk': 0, 'Medium Risk': 0, 'High Risk': 0}
+    for app in applications:
+        if app.risk_assessment:
+            if app.risk_assessment.risk_rating <= 3:
+                risk_counts['Low Risk'] += 1
+            elif app.risk_assessment.risk_rating <= 7:
+                risk_counts['Medium Risk'] += 1
+            else:
+                risk_counts['High Risk'] += 1
+    
+    risk_labels = list(risk_counts.keys())
+    risk_data = list(risk_counts.values())
+    
+    # Income brackets
+    income_brackets = ['Under $25K', '$25K-$50K', '$50K-$75K', '$75K-$100K', 'Over $100K']
+    income_approved = [0] * len(income_brackets)
+    income_rejected = [0] * len(income_brackets)
+    
+    for app in applications:
+        income = app.annual_income
+        bracket_index = 0
+        
+        if income < 25000:
+            bracket_index = 0
+        elif income < 50000:
+            bracket_index = 1
+        elif income < 75000:
+            bracket_index = 2
+        elif income < 100000:
+            bracket_index = 3
+        else:
+            bracket_index = 4
+        
+        if app.status == 'Approved':
+            income_approved[bracket_index] += 1
+        elif app.status == 'Rejected':
+            income_rejected[bracket_index] += 1
+    
+    # Credit score distribution
+    credit_score_ranges = {
+        '300-549': 0,
+        '550-649': 0,
+        '650-749': 0,
+        '750-850': 0
+    }
+    
+    for app in applications:
+        score = app.credit_score
+        if 300 <= score <= 549:
+            credit_score_ranges['300-549'] += 1
+        elif 550 <= score <= 649:
+            credit_score_ranges['550-649'] += 1
+        elif 650 <= score <= 749:
+            credit_score_ranges['650-749'] += 1
+        elif 750 <= score <= 850:
+            credit_score_ranges['750-850'] += 1
+    
+    credit_score_labels = list(credit_score_ranges.keys())
+    credit_score_data = list(credit_score_ranges.values())
+    
+    # Debt-to-Income and Credit Score scatter plot data
+    dti_approved = []
+    dti_rejected = []
+    
+    for app in applications:
+        dti_ratio = (app.existing_debt / app.annual_income * 100) if app.annual_income > 0 else 0
+        data_point = {'x': round(dti_ratio, 2), 'y': app.credit_score}
+        
+        if app.status == 'Approved':
+            dti_approved.append(data_point)
+        elif app.status == 'Rejected':
+            dti_rejected.append(data_point)
+    
+    # Loan-to-Income and Existing Debt scatter plot data
+    loan_to_income_approved = []
+    loan_to_income_rejected = []
+    
+    for app in applications:
+        lti_ratio = (app.loan_amount / app.annual_income * 100) if app.annual_income > 0 else 0
+        data_point = {'x': round(lti_ratio, 2), 'y': app.existing_debt}
+        
+        if app.status == 'Approved':
+            loan_to_income_approved.append(data_point)
+        elif app.status == 'Rejected':
+            loan_to_income_rejected.append(data_point)
+    
+    # Calculate aggregated metrics
+    loan_amounts = [app.loan_amount for app in applications]
+    credit_scores = [app.credit_score for app in applications]
+    approved_count = sum(1 for app in applications if app.status == 'Approved')
+    
+    avg_loan_amount = sum(loan_amounts) / len(loan_amounts) if loan_amounts else 0
+    avg_credit_score = sum(credit_scores) / len(credit_scores) if credit_scores else 0
+    approval_rate = approved_count / total_applications if total_applications > 0 else 0
+    
+    return render_template(
+        'reports.html',
+        title='Loan Reports',
+        total_applications=total_applications,
+        avg_loan_amount=avg_loan_amount,
+        avg_credit_score=avg_credit_score,
+        approval_rate=approval_rate,
+        status_labels=status_labels,
+        status_data=status_data,
+        risk_labels=risk_labels,
+        risk_data=risk_data,
+        income_brackets=income_brackets,
+        income_approved=income_approved,
+        income_rejected=income_rejected,
+        credit_score_labels=credit_score_labels,
+        credit_score_data=credit_score_data,
+        dti_approved=dti_approved,
+        dti_rejected=dti_rejected,
+        loan_to_income_approved=loan_to_income_approved,
+        loan_to_income_rejected=loan_to_income_rejected
+    )
+
 
 @bp.route('/upload', methods=['GET', 'POST'])
 @login_required
