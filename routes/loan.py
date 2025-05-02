@@ -256,23 +256,35 @@ def upload():
                                 'std': float(df[col].std())
                             }
                     
-                    # Initialize anomaly detector
-                    anomaly_detector = AnomalyDetector()
+                    # Initialize variables for unsupervised learning results
+                    unsupervised_results = None
+                    anomaly_results = None
                     
-                    # Train unsupervised models on the dataset
-                    try:
-                        # Train the model and get training results
-                        unsupervised_results = anomaly_detector.train(df)
-                        
-                        # Find anomalies in the dataset
-                        anomaly_results = anomaly_detector.detect_anomalies(df)
-                        
-                        # Log anomaly detection results
-                        print(f"Anomaly detection completed: Found {anomaly_results['anomaly_count']} anomalies")
-                    except Exception as e:
-                        print(f"Error in anomaly detection: {str(e)}")
-                        unsupervised_results = None
-                        anomaly_results = None
+                    # Only attempt unsupervised learning if there's enough data
+                    if len(df) >= 5:  # Minimum threshold for meaningful analysis
+                        try:
+                            # Initialize anomaly detector with a safe default contamination rate
+                            anomaly_detector = AnomalyDetector(model_dir='./models')
+                            
+                            # Train the model and get training results
+                            unsupervised_results = anomaly_detector.train(df)
+                            
+                            # Find anomalies in the dataset
+                            anomaly_results = anomaly_detector.detect_anomalies(df)
+                            
+                            # Log anomaly detection results
+                            if anomaly_results and 'anomaly_count' in anomaly_results:
+                                print(f"Anomaly detection completed: Found {anomaly_results['anomaly_count']} anomalies")
+                            else:
+                                print("Anomaly detection completed but no anomalies found or results invalid")
+                        except Exception as e:
+                            import traceback
+                            print(f"Error in anomaly detection: {str(e)}")
+                            print(traceback.format_exc())
+                            unsupervised_results = None
+                            anomaly_results = None
+                    else:
+                        print(f"Dataset too small for unsupervised learning: {len(df)} records. Minimum 5 required.")
                     
                     # Create complete model training results
                     model_training_results = {

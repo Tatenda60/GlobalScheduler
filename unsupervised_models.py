@@ -54,29 +54,66 @@ class AnomalyDetector:
         - X: Preprocessed numerical features
         - feature_names: List of feature names used
         """
-        # Select numerical features
-        numerical_features = [
-            'loan_amount', 'loan_term', 'credit_score', 
-            'annual_income', 'monthly_expenses', 'existing_debt'
-        ]
-        
-        # Ensure all required numerical features are present
-        available_features = [f for f in numerical_features if f in df.columns]
-        
-        if len(available_features) < 3:
-            raise ValueError("Not enough numerical features for anomaly detection")
-        
-        # Extract features
-        X = df[available_features].copy()
-        
-        # Calculate derived features
-        X['debt_to_income'] = df['existing_debt'] / df['annual_income']
-        X['expense_to_income'] = (df['monthly_expenses'] * 12) / df['annual_income']
-        X['loan_to_income'] = df['loan_amount'] / df['annual_income']
-        
-        # Replace infinities and NaN values
-        X.replace([np.inf, -np.inf], np.nan, inplace=True)
-        X.fillna(X.mean(), inplace=True)
+        try:
+            # Select numerical features
+            numerical_features = [
+                'loan_amount', 'loan_term', 'credit_score', 
+                'annual_income', 'monthly_expenses', 'existing_debt'
+            ]
+            
+            # Ensure all required numerical features are present
+            available_features = [f for f in numerical_features if f in df.columns]
+            
+            if len(available_features) < 3:
+                logger.warning(f"Only {len(available_features)} numerical features available. Minimum 3 required.")
+                raise ValueError(f"Not enough numerical features for anomaly detection. Found: {available_features}")
+            
+            # Extract features
+            X = df[available_features].copy()
+            
+            # Check for non-numeric values and convert if possible
+            for col in X.columns:
+                if not pd.api.types.is_numeric_dtype(X[col]):
+                    logger.warning(f"Column {col} is not numeric. Attempting to convert.")
+                    try:
+                        X[col] = pd.to_numeric(X[col], errors='coerce')
+                    except:
+                        logger.error(f"Failed to convert column {col} to numeric. Dropping column.")
+                        X = X.drop(columns=[col])
+                        available_features.remove(col)
+            
+            # Check if we still have enough features
+            if len(X.columns) < 3:
+                raise ValueError(f"Not enough valid numerical features after preprocessing. Only {len(X.columns)} remain.")
+            
+            # Calculate derived features safely
+            try:
+                # Avoid division by zero
+                X['debt_to_income'] = df['existing_debt'] / df['annual_income'].replace(0, np.nan)
+                X['expense_to_income'] = (df['monthly_expenses'] * 12) / df['annual_income'].replace(0, np.nan)
+                X['loan_to_income'] = df['loan_amount'] / df['annual_income'].replace(0, np.nan)
+            except Exception as e:
+                logger.warning(f"Error calculating derived features: {str(e)}. Using only base features.")
+            
+            # Replace infinities and NaN values
+            X.replace([np.inf, -np.inf], np.nan, inplace=True)
+            
+            # Check if we have non-NaN values to calculate a valid mean
+            if X.count().min() > 0:
+                X.fillna(X.mean(), inplace=True)
+            else:
+                # If a column is all NaN, we can't use mean, so use 0 as fallback
+                X.fillna(0, inplace=True)
+                
+            # Drop any problematic columns after all preprocessing
+            X = X.select_dtypes(include=['number'])
+            
+            if len(X.columns) < 3:
+                raise ValueError(f"Not enough valid numerical features after preprocessing. Only {len(X.columns)} remain.")
+                
+        except Exception as e:
+            logger.error(f"Error preprocessing data: {str(e)}")
+            raise
         
         # Return preprocessed data and feature names
         return X, X.columns.tolist()
@@ -93,30 +130,53 @@ class AnomalyDetector:
         """
         logger.info(f"Training anomaly detection models on {len(df)} records")
         
-        # Preprocess data
-        X, feature_names = self.preprocess_data(df)
-        
-        # Scale features
-        self.scaler = StandardScaler()
-        X_scaled = self.scaler.fit_transform(X)
-        
-        # Train Isolation Forest for anomaly detection
-        self.isolation_forest = IsolationForest(
-            n_estimators=100,
-            max_samples='auto',
-            contamination=0.1,  # Assuming 10% of applications could be anomalous
-            random_state=42
-        )
-        self.isolation_forest.fit(X_scaled)
-        
-        # Train PCA for dimensionality reduction and visualization
-        n_components = min(3, X.shape[1])
-        self.pca = PCA(n_components=n_components)
-        X_pca = self.pca.fit_transform(X_scaled)
-        
-        # Train KMeans for clustering
-        self.kmeans = KMeans(n_clusters=3, random_state=42)
-        clusters = self.kmeans.fit_predict(X_scaled)
+        try:
+            # Preprocess data
+            X, feature_names = self.preprocess_data(df)
+            
+            # Make sure we have enough data
+            if len(X) < 5:
+                logger.warning("Not enough data for reliable anomaly detection")
+                return None
+                
+            # Scale features
+            self.scaler = StandardScaler()
+            X_scaled = self.scaler.fit_transform(X)
+            
+            # Determine appropriate contamination rate based on dataset size
+            # Smaller datasets should have lower contamination to avoid false positives
+            if len(X) <= 10:
+                contamination = 0.1  # 10% for small datasets
+            elif len(X) <= 50:
+                contamination = 0.05  # 5% for medium datasets
+            else:
+                contamination = 0.03  # 3% for larger datasets
+                
+            # Train Isolation Forest for anomaly detection with adjusted parameters for small datasets
+            self.isolation_forest = IsolationForest(
+                n_estimators=min(100, max(50, len(X) * 5)),  # Scale estimators with dataset size
+                max_samples='auto',  # 'auto' uses min(256, n_samples)
+                contamination=contamination,
+                random_state=42
+            )
+            self.isolation_forest.fit(X_scaled)
+            
+            # Train PCA for dimensionality reduction and visualization
+            # Limit number of components to number of features or 3, whichever is smaller
+            n_components = min(3, X.shape[1])
+            self.pca = PCA(n_components=n_components)
+            X_pca = self.pca.fit_transform(X_scaled)
+            
+            # Train KMeans for clustering
+            # Adjust number of clusters based on dataset size
+            n_clusters = min(3, max(2, len(X) // 4))  # At least 2, at most 3 clusters
+            self.kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            clusters = self.kmeans.fit_predict(X_scaled)
+            
+            logger.info(f"Successfully trained models with {len(X)} records, {len(feature_names)} features")
+        except Exception as e:
+            logger.error(f"Error during model training: {str(e)}")
+            raise
         
         # Save models
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -182,23 +242,64 @@ class AnomalyDetector:
         - anomaly_results: Dictionary containing detected anomalies and their scores
         """
         if self.isolation_forest is None or self.scaler is None:
-            raise ValueError("Models not trained. Call train() first.")
+            logger.warning("Models not trained. Cannot detect anomalies.")
+            return {
+                'total_records': len(df),
+                'anomaly_count': 0,
+                'anomaly_percentage': 0.0,
+                'anomaly_records': [],
+                'cluster_distribution': {'cluster_0': len(df)},
+                'pca_explained_variance': [1.0]  # Default value
+            }
         
-        # Preprocess data
-        X, feature_names = self.preprocess_data(df)
-        
-        # Scale features
-        X_scaled = self.scaler.transform(X)
-        
-        # Detect anomalies
-        anomaly_predictions = self.isolation_forest.predict(X_scaled)
-        anomaly_scores = self.isolation_forest.decision_function(X_scaled)
-        
-        # Create anomaly mask (True for anomalies)
-        anomaly_mask = anomaly_predictions == -1
-        
-        # Get indices of anomalies
-        anomaly_indices = np.where(anomaly_mask)[0]
+        try:
+            # Preprocess data
+            X, feature_names = self.preprocess_data(df)
+            
+            # Check if we have enough data
+            if len(X) < 3:
+                logger.warning("Not enough data for anomaly detection")
+                return {
+                    'total_records': len(df),
+                    'anomaly_count': 0,
+                    'anomaly_percentage': 0.0,
+                    'anomaly_records': [],
+                    'cluster_distribution': {'cluster_0': len(df)},
+                    'pca_explained_variance': [1.0]
+                }
+            
+            # Scale features
+            X_scaled = self.scaler.transform(X)
+            
+            # Detect anomalies
+            anomaly_predictions = self.isolation_forest.predict(X_scaled)
+            anomaly_scores = self.isolation_forest.decision_function(X_scaled)
+            
+            # Create anomaly mask (True for anomalies)
+            anomaly_mask = anomaly_predictions == -1
+            
+            # Get indices of anomalies
+            anomaly_indices = np.where(anomaly_mask)[0]
+            
+            # If we detected too many anomalies (more than 30%), limit to the most anomalous ones
+            if len(anomaly_indices) > len(X) * 0.3:
+                logger.warning(f"Too many anomalies detected ({len(anomaly_indices)}). Limiting to 30% most anomalous.")
+                # Sort indices by anomaly score (lower is more anomalous)
+                sorted_indices = np.argsort(anomaly_scores)
+                # Take the top 30% as anomalies
+                max_anomalies = int(len(X) * 0.3)
+                anomaly_indices = sorted_indices[:max_anomalies]
+        except Exception as e:
+            logger.error(f"Error in anomaly detection: {str(e)}")
+            return {
+                'total_records': len(df),
+                'anomaly_count': 0,
+                'anomaly_percentage': 0.0,
+                'anomaly_records': [],
+                'error_message': str(e),
+                'cluster_distribution': {'cluster_0': len(df)},
+                'pca_explained_variance': [1.0]
+            }
         
         # Project to PCA space for visualization
         X_pca = self.pca.transform(X_scaled)
@@ -253,11 +354,10 @@ class AnomalyDetector:
             'anomaly_percentage': (len(anomaly_indices) / len(df)) * 100,
             'anomaly_threshold': self.isolation_forest.threshold_,
             'anomaly_records': anomaly_records,
-            'pca_explained_variance': self.pca.explained_variance_ratio_.tolist(),
+            'pca_explained_variance': self.pca.explained_variance_ratio_.tolist() if hasattr(self.pca, 'explained_variance_ratio_') else [1.0],
             'cluster_distribution': {
-                'cluster_0': sum(1 for c in clusters if c == 0),
-                'cluster_1': sum(1 for c in clusters if c == 1),
-                'cluster_2': sum(1 for c in clusters if c == 2)
+                f'cluster_{i}': sum(1 for c in clusters if c == i)
+                for i in range(self.kmeans.n_clusters)
             }
         }
         
