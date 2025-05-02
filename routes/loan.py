@@ -164,6 +164,25 @@ def upload():
             
             # Process the CSV file
             try:
+                # Parse the CSV file first to validate it
+                try:
+                    import pandas as pd
+                    df = pd.read_csv(temp_path)
+                    print(f"Successfully read CSV with {len(df)} records and {len(df.columns)} columns")
+                    
+                    # Check if key required columns exist
+                    required_columns = ['loan_amount', 'loan_term', 'credit_score', 'annual_income', 'monthly_expenses', 'existing_debt', 'employment_status']
+                    missing_columns = [col for col in required_columns if col not in df.columns]
+                    if missing_columns:
+                        raise ValueError(f"CSV file is missing required columns: {', '.join(missing_columns)}")
+                    
+                except Exception as e:
+                    import traceback
+                    print(f"Error validating CSV format: {str(e)}")
+                    print(traceback.format_exc())
+                    raise ValueError(f"Invalid CSV format: {str(e)}")
+                
+                # Process the data through the risk engine
                 assessments = CreditRiskEngine.process_csv_data(temp_path)
                 
                 # Create loan applications and risk assessments for each row
@@ -197,34 +216,66 @@ def upload():
                         application.status = 'Under Review'
                     
                     # Add application to database
-                    db.session.add(application)
-                    db.session.commit()
+                    try:
+                        # Add application to database
+                        db.session.add(application)
+                        db.session.flush()  # Just to get the ID without committing
+                        
+                        risk_assessment = RiskAssessment(
+                            loan_application_id=application.id,
+                            probability_of_default=float(assessment['probability_of_default']),
+                            loss_given_default=float(assessment['loss_given_default']),
+                            exposure_at_default=float(assessment['exposure_at_default']),
+                            expected_loss=float(assessment['expected_loss']),
+                            risk_rating=int(assessment['risk_rating']),
+                            recommendation=assessment['recommendation'],
+                            reasons=', '.join(assessment['reasons'])
+                        )
+                        
+                        # Add risk assessment to database
+                        db.session.add(risk_assessment)
+                        db.session.commit()
+                    except Exception as e:
+                        # Roll back in case of error
+                        db.session.rollback()
+                        import traceback
+                        print(f"Error saving to database: {str(e)}")
+                        print(traceback.format_exc())
+                        # Continue to next record
                     
-                    risk_assessment = RiskAssessment(
-                        loan_application_id=application.id,
-                        probability_of_default=assessment['probability_of_default'],
-                        loss_given_default=assessment['loss_given_default'],
-                        exposure_at_default=assessment['exposure_at_default'],
-                        expected_loss=assessment['expected_loss'],
-                        risk_rating=assessment['risk_rating'],
-                        recommendation=assessment['recommendation'],
-                        reasons=', '.join(assessment['reasons'])
-                    )
+                    # Store processed application for summary - safely handle risk_assessment which might be undefined in case of database error
+                    app_summary = {
+                        'id': getattr(application, 'id', 0),
+                        'loan_amount': getattr(application, 'loan_amount', 0),
+                        'credit_score': getattr(application, 'credit_score', 0),
+                        'status': getattr(application, 'status', 'Unknown')
+                    }
                     
-                    # Add risk assessment to database
-                    db.session.add(risk_assessment)
-                    db.session.commit()
+                    # Add risk assessment data if it exists and was successfully saved
+                    try:
+                        if 'risk_assessment' in locals() and risk_assessment is not None:
+                            app_summary.update({
+                                'risk_rating': risk_assessment.risk_rating,
+                                'probability_of_default': risk_assessment.probability_of_default,
+                                'recommendation': risk_assessment.recommendation
+                            })
+                        else:
+                            # Use data from the assessment dictionary if risk_assessment object not available
+                            app_summary.update({
+                                'risk_rating': assessment.get('risk_rating', 0),
+                                'probability_of_default': assessment.get('probability_of_default', 0),
+                                'recommendation': assessment.get('recommendation', 'Unknown')
+                            })
+                    except Exception as e:
+                        print(f"Error adding risk data to summary: {str(e)}")
+                        # Add default values if we can't get the data
+                        app_summary.update({
+                            'risk_rating': 0,
+                            'probability_of_default': 0,
+                            'recommendation': 'Unknown'
+                        })
                     
-                    # Store processed application for summary
-                    processed_applications.append({
-                        'id': application.id,
-                        'loan_amount': application.loan_amount,
-                        'credit_score': application.credit_score,
-                        'status': application.status,
-                        'risk_rating': risk_assessment.risk_rating,
-                        'probability_of_default': risk_assessment.probability_of_default,
-                        'recommendation': risk_assessment.recommendation
-                    })
+                    processed_applications.append(app_summary)
                 
                 # Count the number of each recommendation
                 approved = sum(1 for app in processed_applications if app['status'] == 'Approved')
