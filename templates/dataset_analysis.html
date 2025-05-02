@@ -148,6 +148,139 @@
         </div>
     </div>
     
+    <!-- Anomaly Detection Results -->
+    {% if training_results and training_results.anomaly_detection %}
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-search-minus me-2"></i> Anomaly Detection Results</h5>
+                    <span class="badge bg-info">
+                        {{ training_results.anomaly_detection.anomaly_count }} Anomalies Detected
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <p><strong>Anomaly Detection:</strong> {{ training_results.anomaly_detection.anomaly_percentage|round(1) }}% of applications were identified as anomalies</p>
+                                <p class="mb-0"><small>Anomalies are loan applications with unusual patterns that may require special attention.</small></p>
+                            </div>
+                            
+                            {% if training_results.anomaly_detection.anomaly_records %}
+                            <h6 class="mt-3 mb-2">Top Anomalies</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Record</th>
+                                            <th>Anomaly Score</th>
+                                            <th>Key Factors</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in training_results.anomaly_detection.anomaly_records[:5] %}
+                                        <tr>
+                                            <td>{{ record.index + 1 }}</td>
+                                            <td>{{ "%.3f"|format(record.score|abs) }}</td>
+                                            <td>
+                                                <ul class="mb-0 ps-3">
+                                                    {% for feature, score in record.anomalous_features.items() %}
+                                                    <li>{{ feature }} ({{ "%.2f"|format(score) }})</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Anomaly Distribution by Cluster</h6>
+                            <div class="chart-container" style="height: 250px;">
+                                <canvas id="anomalyClusterChart"></canvas>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h6>Explained Variance by Principal Components</h6>
+                                <div class="progress mb-2">
+                                    {% for variance in training_results.anomaly_detection.pca_explained_variance %}
+                                    <div class="progress-bar bg-info" role="progressbar" 
+                                         style="width: {{ variance * 100 }}%;" 
+                                         aria-valuenow="{{ variance * 100 }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        {{ "%.1f"|format(variance * 100) }}%
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted">The chart shows how much information is captured by each principal component in the dimensionality reduction.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Unsupervised Learning Results -->
+    {% if training_results and training_results.unsupervised_learning %}
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-brain me-2"></i> Unsupervised Learning Insights</h5>
+                    <span class="badge bg-primary">Self-Training Completed</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Feature Importance in Anomaly Detection</h6>
+                            <div class="chart-container" style="height: 250px;">
+                                <canvas id="unsupervisedFeatureImportanceChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Cluster Analysis</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Cluster</th>
+                                            <th>Size</th>
+                                            <th>Percentage</th>
+                                            <th>Anomalies</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for cluster_id, stats in training_results.unsupervised_learning.clusters.items() %}
+                                        <tr>
+                                            <td><strong>{{ cluster_id }}</strong></td>
+                                            <td>{{ stats.size }}</td>
+                                            <td>{{ "%.1f%%"|format(stats.percentage) }}</td>
+                                            <td>{{ stats.anomaly_count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <p class="mb-0"><strong>Self-Training:</strong> The system has analyzed the dataset and built a model to automatically detect unusual patterns in future loan applications.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Model Training Results -->
     <div class="row">
         <div class="col-md-12 mb-4">
@@ -314,6 +447,85 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    
+    // Anomaly Distribution by Cluster Chart
+    {% if training_results and training_results.anomaly_detection %}
+    const anomalyClusterCtx = document.getElementById('anomalyClusterChart');
+    if (anomalyClusterCtx) {
+        const clusterLabels = Object.keys({{ training_results.anomaly_detection.cluster_distribution|tojson }});
+        const clusterCounts = Object.values({{ training_results.anomaly_detection.cluster_distribution|tojson }});
+        
+        new Chart(anomalyClusterCtx, {
+            type: 'bar',
+            data: {
+                labels: clusterLabels.map(label => `Cluster ${label.split('_')[1]}`),
+                datasets: [{
+                    label: 'Records Count',
+                    data: clusterCounts,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        });
+    }
+    {% endif %}
+    
+    // Unsupervised Feature Importance Chart
+    {% if training_results and training_results.unsupervised_learning %}
+    const unsupervisedFeatureCtx = document.getElementById('unsupervisedFeatureImportanceChart');
+    if (unsupervisedFeatureCtx) {
+        const featureImportance = {{ training_results.unsupervised_learning.feature_importance|tojson }};
+        const featureNames = Object.keys(featureImportance);
+        const importanceValues = Object.values(featureImportance);
+        
+        // Sort by importance
+        const sortedIndices = importanceValues
+            .map((value, index) => ({ value, index }))
+            .sort((a, b) => b.value - a.value)
+            .map(item => item.index);
+        
+        const sortedFeatures = sortedIndices.map(index => featureNames[index]);
+        const sortedValues = sortedIndices.map(index => importanceValues[index]);
+        
+        new Chart(unsupervisedFeatureCtx, {
+            type: 'horizontalBar',
+            data: {
+                labels: sortedFeatures,
+                datasets: [{
+                    label: 'Feature Importance',
+                    data: sortedValues,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    xAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            max: Math.max(...sortedValues) * 1.1
+                        }
+                    }]
+                }
+            }
+        });
+    }
+    {% endif %}
     
     {% if training_results %}
     // Feature Importance Chart - using the selected model's feature importance
