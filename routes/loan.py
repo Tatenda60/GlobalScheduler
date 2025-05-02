@@ -1,6 +1,8 @@
 import os
 import csv
 import tempfile
+import pandas as pd
+import numpy as np
 from datetime import datetime
 from flask import (
     Blueprint, render_template, redirect, url_for, 
@@ -114,7 +116,7 @@ def predict(application_id):
     application = LoanApplication.query.get_or_404(application_id)
     
     # Ensure the application belongs to the current user
-    if application.user_id != current_user.id:
+    if application.user_id != current_user.id and not current_user.has_staff_privileges():
         flash('You do not have permission to view this application.', 'danger')
         return redirect(url_for('loan.index'))
     
@@ -125,11 +127,117 @@ def predict(application_id):
         flash('No risk assessment found for this application.', 'danger')
         return redirect(url_for('loan.index'))
     
+    # Gather comparison data for visualization
+    # Get average risk metrics from similar applications by credit score range
+    credit_score = application.credit_score
+    # Define the range to be +/- 50 points
+    min_score = max(300, credit_score - 50)
+    max_score = min(850, credit_score + 50)
+    
+    similar_applications = LoanApplication.query.filter(
+        LoanApplication.credit_score.between(min_score, max_score),
+        LoanApplication.id != application_id  # Exclude current application
+    ).all()
+    
+    # Calculate averages for comparison if similar applications exist
+    avg_pd = 0
+    avg_lgd = 0
+    avg_ead = 0
+    avg_risk_rating = 0
+    count = 0
+    
+    for app in similar_applications:
+        if app.risk_assessment:
+            avg_pd += app.risk_assessment.probability_of_default
+            avg_lgd += app.risk_assessment.loss_given_default
+            avg_ead += app.risk_assessment.exposure_at_default
+            avg_risk_rating += app.risk_assessment.risk_rating
+            count += 1
+    
+    if count > 0:
+        avg_pd /= count
+        avg_lgd /= count
+        avg_ead /= count
+        avg_risk_rating /= count
+    
+    # Get distributions for comparison charts
+    credit_score_distribution = {}
+    pd_distribution = {"0-5%": 0, "5-10%": 0, "10-15%": 0, "15-20%": 0, "20%+": 0}
+    risk_rating_distribution = {i: 0 for i in range(1, 11)}
+    
+    for app in similar_applications:
+        # Credit score distribution (bins of 50)
+        score_bin = (app.credit_score // 50) * 50
+        score_key = f"{score_bin}-{score_bin + 49}"
+        credit_score_distribution[score_key] = credit_score_distribution.get(score_key, 0) + 1
+        
+        # Risk assessment distributions
+        if app.risk_assessment:
+            # PD distribution
+            pd = app.risk_assessment.probability_of_default * 100
+            if pd < 5:
+                pd_distribution["0-5%"] += 1
+            elif pd < 10:
+                pd_distribution["5-10%"] += 1
+            elif pd < 15:
+                pd_distribution["10-15%"] += 1
+            elif pd < 20:
+                pd_distribution["15-20%"] += 1
+            else:
+                pd_distribution["20%+"] += 1
+                
+            # Risk rating distribution
+            risk_rating = app.risk_assessment.risk_rating
+            risk_rating_distribution[risk_rating] = risk_rating_distribution.get(risk_rating, 0) + 1
+    
+    # Prepare data for loan amount distribution chart
+    amount_distribution = []
+    for app in similar_applications:
+        amount_distribution.append({
+            'x': app.loan_amount,
+            'y': app.credit_score,
+            'r': 5,  # Bubble size
+            'status': app.status
+        })
+    
+    # Prepare income vs expenses comparison data
+    income_expenses_data = []
+    for app in similar_applications:
+        monthly_income = app.annual_income / 12
+        income_expenses_data.append({
+            'x': monthly_income,
+            'y': app.monthly_expenses,
+            'r': 5,  # Bubble size
+            'status': app.status
+        })
+    
+    # Current application's metrics for comparison charts
+    current_app_metrics = {
+        'credit_score': application.credit_score,
+        'loan_amount': application.loan_amount,
+        'monthly_income': application.annual_income / 12,
+        'monthly_expenses': application.monthly_expenses,
+        'probability_of_default': risk_assessment.probability_of_default * 100,
+        'risk_rating': risk_assessment.risk_rating
+    }
+    
     return render_template(
         'predict.html',
         title='Loan Prediction Result',
         application=application,
-        assessment=risk_assessment
+        assessment=risk_assessment,
+        # Comparison data
+        avg_pd=avg_pd,
+        avg_lgd=avg_lgd,
+        avg_ead=avg_ead,
+        avg_risk_rating=avg_risk_rating,
+        credit_score_distribution=credit_score_distribution,
+        pd_distribution=pd_distribution,
+        risk_rating_distribution=risk_rating_distribution,
+        amount_distribution=amount_distribution,
+        income_expenses_data=income_expenses_data,
+        current_app_metrics=current_app_metrics,
+        similar_count=count
     )
 
 
