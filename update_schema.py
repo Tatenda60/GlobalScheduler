@@ -66,6 +66,15 @@ def update_schema():
     # Add is_staff column to User model if it doesn't exist
     add_column(engine, 'user', User.__table__.c.is_staff)
     
+    # Add handled_by_id column to LoanApplication if it doesn't exist
+    add_column(engine, 'loan_application', LoanApplication.__table__.c.handled_by_id)
+    
+    # Add handled_at column to LoanApplication if it doesn't exist
+    add_column(engine, 'loan_application', LoanApplication.__table__.c.handled_at)
+    
+    # Add decision_notes column to LoanApplication if it doesn't exist
+    add_column(engine, 'loan_application', LoanApplication.__table__.c.decision_notes)
+    
     print("Schema update complete!")
 
 if __name__ == "__main__":
