@@ -12,6 +12,9 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(64))
     last_name = db.Column(db.String(64))
     phone = db.Column(db.String(20))
+    # Role-based access control
+    role = db.Column(db.String(20), default='customer')  # 'customer', 'staff', 'officer', 'admin'
+    is_staff = db.Column(db.Boolean, default=False)  # Quick check for any staff role
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -28,6 +31,28 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.username}>'
+        
+    def is_admin(self):
+        """Check if the user is an administrator"""
+        return self.role == 'admin'
+        
+    def is_loan_officer(self):
+        """Check if the user is a loan officer"""
+        return self.role == 'officer'
+        
+    def is_bank_staff(self):
+        """Check if the user is bank staff"""
+        return self.role == 'staff'
+        
+    def has_staff_privileges(self):
+        """Check if the user has any staff privileges"""
+        return self.is_staff or self.role in ['staff', 'officer', 'admin']
+        
+    def get_display_name(self):
+        """Get the user's display name"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.username
 
 
 class LoanApplication(db.Model):
@@ -54,6 +79,12 @@ class LoanApplication(db.Model):
     status = db.Column(db.String(50), default='Pending')  # Pending, Approved, Rejected, Under Review
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Tracking who handled the loan
+    handled_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    handled_by = db.relationship('User', foreign_keys=[handled_by_id], backref='handled_loans')
+    handled_at = db.Column(db.DateTime, nullable=True)
+    decision_notes = db.Column(db.Text, nullable=True)
     
     # Relationship with risk assessment
     risk_assessment = db.relationship('RiskAssessment', backref='loan_application', uselist=False)
