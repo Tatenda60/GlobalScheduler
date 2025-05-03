@@ -18,7 +18,7 @@
     </div>
     
     <!-- Quick stats -->
-    <div class="col-md-4 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
         <div class="card card-dashboard card-metric">
             <div class="card-body">
                 <div class="metric-icon text-primary">
@@ -30,74 +30,150 @@
         </div>
     </div>
     
-    <div class="col-md-4 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
         <div class="card card-dashboard card-metric">
             <div class="card-body">
                 <div class="metric-icon text-success">
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="metric-value">{{ approved_applications }}</div>
-                <div class="metric-label">Approved Loans</div>
+                <div class="metric-label">Approved</div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-4 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
         <div class="card card-dashboard card-metric">
             <div class="card-body">
-                <div class="metric-icon text-info">
-                    <i class="fas fa-percent"></i>
+                <div class="metric-icon text-danger">
+                    <i class="fas fa-times-circle"></i>
                 </div>
-                <div class="metric-value">
-                    {% if total_applications > 0 %}
-                        {{ (approved_applications / total_applications * 100) | round(1) }}%
-                    {% else %}
-                        0%
-                    {% endif %}
-                </div>
-                <div class="metric-label">Approval Rate</div>
+                <div class="metric-value">{{ rejected_applications }}</div>
+                <div class="metric-label">Rejected</div>
             </div>
         </div>
     </div>
     
-    <!-- Recent applications -->
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card card-dashboard card-metric">
+            <div class="card-body">
+                <div class="metric-icon text-warning">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="metric-value">{{ pending_applications + review_applications }}</div>
+                <div class="metric-label">Pending/Review</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-8 col-sm-12 mb-4">
+        <div class="card card-dashboard">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h5 text-success mb-0">
+                                {% if total_applications > 0 %}
+                                    {{ (approved_applications / total_applications * 100) | round(1) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                            <div class="small text-muted">Approval Rate</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h5 text-danger mb-0">
+                                {% if total_applications > 0 %}
+                                    {{ (rejected_applications / total_applications * 100) | round(1) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                            <div class="small text-muted">Rejection Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- All loan applications with enhanced details -->
     <div class="col-12 mb-4">
         <div class="card card-dashboard">
-            <div class="card-header">
-                <h5 class="mb-0">Recent Applications</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Your Loan Applications</h5>
+                <a href="{{ url_for('loan.apply') }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> New Application
+                </a>
             </div>
             <div class="card-body">
                 {% if applications %}
                     <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
+                        <table class="table table-striped table-hover">
+                            <thead class="table-light">
                                 <tr>
+                                    <th>ID</th>
                                     <th>Date</th>
-                                    <th>Loan Amount</th>
+                                    <th>Amount</th>
+                                    <th>Term</th> 
                                     <th>Purpose</th>
                                     <th>Status</th>
+                                    <th>Risk Score</th>
+                                    <th>Handled By</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for app in applications %}
                                 <tr>
+                                    <td>{{ app.id }}</td>
                                     <td>{{ app.created_at.strftime('%Y-%m-%d') }}</td>
-                                    <td>${{ app.loan_amount | round(2) }}</td>
+                                    <td>${{ "%.2f"|format(app.loan_amount) }}</td>
+                                    <td>{{ app.loan_term }} months</td>
                                     <td>{{ app.loan_purpose | title }}</td>
                                     <td>
                                         {% if app.status == 'Approved' %}
-                                            <span class="badge bg-success loan-status-badge">Approved</span>
+                                            <span class="badge bg-success">Approved</span>
                                         {% elif app.status == 'Rejected' %}
-                                            <span class="badge bg-danger loan-status-badge">Rejected</span>
+                                            <span class="badge bg-danger">Rejected</span>
                                         {% elif app.status == 'Under Review' %}
-                                            <span class="badge bg-warning loan-status-badge">Under Review</span>
+                                            <span class="badge bg-info">Under Review</span>
                                         {% else %}
-                                            <span class="badge bg-secondary loan-status-badge">Pending</span>
+                                            <span class="badge bg-warning text-dark">Pending</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <a href="{{ url_for('loan.predict', application_id=app.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                                        {% if app.risk_assessment %}
+                                            <span 
+                                                class="badge
+                                                {% if app.risk_assessment.risk_rating <= 3 %}
+                                                    bg-success
+                                                {% elif app.risk_assessment.risk_rating <= 7 %}
+                                                    bg-warning text-dark
+                                                {% else %}
+                                                    bg-danger
+                                                {% endif %}
+                                                "
+                                            >
+                                                {{ app.risk_assessment.risk_rating }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">--</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if app.handled_by %}
+                                            {{ app.handled_by.username }}
+                                        {% else %}
+                                            <span class="text-muted">--</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('loan.predict', application_id=app.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-chart-line"></i> Details
+                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -113,7 +189,7 @@
                 {% endif %}
             </div>
             <div class="card-footer text-center">
-                <a href="{{ url_for('loan.history') }}" class="text-decoration-none">View all applications</a>
+                <a href="{{ url_for('loan.history') }}" class="text-decoration-none">View full application history</a>
             </div>
         </div>
     </div>

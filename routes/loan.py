@@ -76,20 +76,52 @@ def index():
             order=order
         )
     else:
-        # For regular users, show their own applications
-        # Get the user's loan applications
-        applications = LoanApplication.query.filter_by(user_id=current_user.id).order_by(LoanApplication.created_at.desc()).limit(5).all()
+        # For regular users, show all their applications
+        # Get all user's loan applications with sorting
+        sort_by = request.args.get('sort', 'created_at')
+        order = request.args.get('order', 'desc')
+        
+        # Build the query for user's applications
+        user_query = LoanApplication.query.filter_by(user_id=current_user.id)
+        
+        # Apply sorting
+        if sort_by == 'created_at':
+            if order == 'desc':
+                user_query = user_query.order_by(LoanApplication.created_at.desc())
+            else:
+                user_query = user_query.order_by(LoanApplication.created_at.asc())
+        elif sort_by == 'loan_amount':
+            if order == 'desc':
+                user_query = user_query.order_by(LoanApplication.loan_amount.desc())
+            else:
+                user_query = user_query.order_by(LoanApplication.loan_amount.asc())
+        elif sort_by == 'status':
+            if order == 'desc':
+                user_query = user_query.order_by(LoanApplication.status.desc())
+            else:
+                user_query = user_query.order_by(LoanApplication.status.asc())
+        
+        # Get all applications
+        applications = user_query.all()
         
         # Calculate some statistics for the dashboard
         total_applications = LoanApplication.query.filter_by(user_id=current_user.id).count()
         approved_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Approved').count()
+        rejected_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Rejected').count()
+        pending_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Pending').count()
+        review_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Under Review').count()
         
         return render_template(
             'index.html', 
             title='Dashboard',
             applications=applications,
             total_applications=total_applications,
-            approved_applications=approved_applications
+            approved_applications=approved_applications,
+            rejected_applications=rejected_applications,
+            pending_applications=pending_applications,
+            review_applications=review_applications,
+            sort_by=sort_by,
+            order=order
         )
 
 
