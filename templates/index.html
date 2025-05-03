@@ -143,6 +143,10 @@
                                         {% else %}
                                             <span class="badge bg-warning text-dark">Pending</span>
                                         {% endif %}
+                                        
+                                        {% if app.user_id != current_user.id %}
+                                            <span class="badge bg-secondary ms-1">Sample</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if app.risk_assessment %}

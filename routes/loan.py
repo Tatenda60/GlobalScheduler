@@ -9,6 +9,7 @@ from flask import (
     flash, request, current_app, jsonify
 )
 from flask_login import login_required, current_user
+from sqlalchemy import func
 from app import db
 from models import User, LoanApplication, RiskAssessment
 from forms import LoanApplicationForm, CSVUploadForm
@@ -76,7 +77,7 @@ def index():
             order=order
         )
     else:
-        # For regular users, show all their applications
+        # For regular users, show their applications + sample applications
         # Get all user's loan applications with sorting
         sort_by = request.args.get('sort', 'created_at')
         order = request.args.get('order', 'desc')
@@ -101,15 +102,53 @@ def index():
             else:
                 user_query = user_query.order_by(LoanApplication.status.asc())
         
-        # Get all applications
-        applications = user_query.all()
+        # Get all user's applications
+        user_applications = user_query.all()
         
-        # Calculate some statistics for the dashboard
-        total_applications = LoanApplication.query.filter_by(user_id=current_user.id).count()
-        approved_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Approved').count()
-        rejected_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Rejected').count()
-        pending_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Pending').count()
-        review_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Under Review').count()
+        # Get sample of other applications if user has no applications or just a few
+        if len(user_applications) < 5:
+            # Sample query to show other applications (not from current user)
+            sample_query = LoanApplication.query.filter(LoanApplication.user_id != current_user.id)
+            sample_query = sample_query.outerjoin(RiskAssessment).outerjoin(User, LoanApplication.handled_by_id == User.id)
+            
+            # Get some of each status type for variety
+            approved_samples = sample_query.filter_by(status='Approved').order_by(func.random()).limit(3).all()
+            rejected_samples = sample_query.filter_by(status='Rejected').order_by(func.random()).limit(3).all()
+            review_samples = sample_query.filter_by(status='Under Review').order_by(func.random()).limit(2).all()
+            pending_samples = sample_query.filter_by(status='Pending').order_by(func.random()).limit(2).all()
+            
+            # Combine with user's applications
+            sample_applications = approved_samples + rejected_samples + review_samples + pending_samples
+            applications = user_applications + sample_applications
+            
+            # Sort based on requested order
+            if sort_by == 'created_at':
+                if order == 'desc':
+                    applications.sort(key=lambda x: x.created_at, reverse=True)
+                else:
+                    applications.sort(key=lambda x: x.created_at)
+            elif sort_by == 'loan_amount':
+                if order == 'desc':
+                    applications.sort(key=lambda x: x.loan_amount, reverse=True)
+                else:
+                    applications.sort(key=lambda x: x.loan_amount)
+        else:
+            # User already has enough applications
+            applications = user_applications
+        
+        # Calculate statistics for all applications in the system
+        total_applications = LoanApplication.query.count()
+        approved_applications = LoanApplication.query.filter_by(status='Approved').count()
+        rejected_applications = LoanApplication.query.filter_by(status='Rejected').count()
+        pending_applications = LoanApplication.query.filter_by(status='Pending').count()
+        review_applications = LoanApplication.query.filter_by(status='Under Review').count()
+        
+        # Calculate user's own statistics
+        user_total = LoanApplication.query.filter_by(user_id=current_user.id).count()
+        user_approved = LoanApplication.query.filter_by(user_id=current_user.id, status='Approved').count()
+        user_rejected = LoanApplication.query.filter_by(user_id=current_user.id, status='Rejected').count()
+        user_pending = LoanApplication.query.filter_by(user_id=current_user.id, status='Pending').count()
+        user_review = LoanApplication.query.filter_by(user_id=current_user.id, status='Under Review').count()
         
         return render_template(
             'index.html', 
@@ -120,6 +159,11 @@ def index():
             rejected_applications=rejected_applications,
             pending_applications=pending_applications,
             review_applications=review_applications,
+            user_total=user_total,
+            user_approved=user_approved,
+            user_rejected=user_rejected,
+            user_pending=user_pending,
+            user_review=user_review,
             sort_by=sort_by,
             order=order
         )
@@ -410,6 +454,29 @@ def history():
         title='Loan Application History',
         applications=applications
     )
+
+@bp.route('/seed-data', methods=['GET', 'POST'])
+@login_required
+def seed_data():
+    """Populate the database with sample loan applications"""
+    if not current_user.is_admin():
+        flash('You do not have permission to perform this action.', 'danger')
+        return redirect(url_for('loan.index'))
+    
+    if request.method == 'POST':
+        # Import and run the seeding script
+        from seed_applications import seed_sample_data
+        
+        try:
+            seed_sample_data()
+            flash('Sample data has been successfully seeded into the database.', 'success')
+        except Exception as e:
+            flash(f'Error seeding data: {str(e)}', 'danger')
+            
+        return redirect(url_for('loan.index'))
+    
+    return render_template('seed_data.html', title='Seed Sample Data')
+
 
 @bp.route('/reports')
 @login_required

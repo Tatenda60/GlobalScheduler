@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Seed Sample Data{% endblock %}
+
+{% block page_title %}Seed Sample Data{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Populate Database with Sample Data</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5 class="alert-heading">This action will add sample data to the database</h5>
+                    <p>
+                        This will create multiple sample users and loan applications with various statuses,
+                        risk ratings, and outcomes. These samples will be used to demonstrate the functionality
+                        of the credit risk modeling system.
+                    </p>
+                    <hr>
+                    <p class="mb-0">
+                        <strong>Note:</strong> This action is intended for demonstration purposes and should
+                        only be performed in development or testing environments.
+                    </p>
+                </div>
+                
+                <div class="mt-4">
+                    <form method="POST" action="{{ url_for('loan.seed_data') }}">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Generate Sample Data</button>
+                            <a href="{{ url_for('loan.index') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

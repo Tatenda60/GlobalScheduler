@@ -12,6 +12,11 @@
     <a href="#" class="btn btn-secondary" id="exportBtn">
         <i class="fas fa-file-export"></i> Export Data
     </a>
+    {% if current_user.is_admin() %}
+    <a href="{{ url_for('loan.seed_data') }}" class="btn btn-info">
+        <i class="fas fa-database"></i> Seed Sample Data
+    </a>
+    {% endif %}
 </div>
 {% endblock %}
 
