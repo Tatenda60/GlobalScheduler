@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from app import app, db
 from models import User, LoanApplication, RiskAssessment
 from risk_engine import CreditRiskEngine
-from werkzeug.security import generate_password_hash
 
 # Configuration options
 NUM_SAMPLE_USERS = 10  # Number of sample users to create
@@ -61,16 +60,15 @@ def create_random_user(idx):
     last_name = random.choice(LAST_NAMES)
     username = f"{first_name.lower()}{last_name.lower()}{idx}"
     email = f"{username}@example.com"
-    password_hash = generate_password_hash('Password@123')
     
     user = User(
         username=username,
         email=email,
-        password_hash=password_hash,
         first_name=first_name,
         last_name=last_name,
         role='customer'
     )
+    user.set_password('Password@123')
     
     return user
 
@@ -153,10 +151,10 @@ def seed_sample_data():
             user = User(
                 username=staff_user['username'],
                 email=staff_user['email'],
-                password_hash=generate_password_hash(staff_user['password']),
                 role=staff_user['role'],
                 is_staff=True
             )
+            user.set_password(staff_user['password'])
             db.session.add(user)
             created_users.append(user)
             print(f"Created staff user: {staff_user['username']}")
@@ -168,11 +166,11 @@ def seed_sample_data():
                 demo_user = User(
                     username='demouser',
                     email='demo@example.com',
-                    password_hash=generate_password_hash('Demo@123'),
                     first_name='Demo',
                     last_name='User',
                     role='customer'
                 )
+                demo_user.set_password('Demo@123')
                 db.session.add(demo_user)
                 created_users.append(demo_user)
                 print("Created demo user: demouser")
