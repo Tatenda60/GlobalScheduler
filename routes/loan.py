@@ -112,10 +112,10 @@ def index():
             sample_query = sample_query.outerjoin(RiskAssessment).outerjoin(User, LoanApplication.handled_by_id == User.id)
             
             # Get some of each status type for variety
-            approved_samples = sample_query.filter_by(status='Approved').order_by(func.random()).limit(3).all()
-            rejected_samples = sample_query.filter_by(status='Rejected').order_by(func.random()).limit(3).all()
-            review_samples = sample_query.filter_by(status='Under Review').order_by(func.random()).limit(2).all()
-            pending_samples = sample_query.filter_by(status='Pending').order_by(func.random()).limit(2).all()
+            approved_samples = sample_query.filter(LoanApplication.status == 'Approved').order_by(func.random()).limit(3).all()
+            rejected_samples = sample_query.filter(LoanApplication.status == 'Rejected').order_by(func.random()).limit(3).all()
+            review_samples = sample_query.filter(LoanApplication.status == 'Under Review').order_by(func.random()).limit(2).all()
+            pending_samples = sample_query.filter(LoanApplication.status == 'Pending').order_by(func.random()).limit(2).all()
             
             # Combine with user's applications
             sample_applications = approved_samples + rejected_samples + review_samples + pending_samples
