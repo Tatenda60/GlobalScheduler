@@ -22,20 +22,75 @@ bp = Blueprint('loan', __name__)
 @login_required
 def index():
     """Display the dashboard/homepage"""
-    # Get the user's loan applications
-    applications = LoanApplication.query.filter_by(user_id=current_user.id).order_by(LoanApplication.created_at.desc()).limit(5).all()
-    
-    # Calculate some statistics for the dashboard
-    total_applications = LoanApplication.query.filter_by(user_id=current_user.id).count()
-    approved_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Approved').count()
-    
-    return render_template(
-        'index.html', 
-        title='Dashboard',
-        applications=applications,
-        total_applications=total_applications,
-        approved_applications=approved_applications
-    )
+    # Check if user has staff privileges - load all applications
+    if current_user.has_staff_privileges():
+        # For staff members, show all loan applications with pagination
+        page = request.args.get('page', 1, type=int)
+        status_filter = request.args.get('status', 'all')
+        sort_by = request.args.get('sort', 'created_at')
+        order = request.args.get('order', 'desc')
+        
+        # Build query
+        query = LoanApplication.query
+        
+        # Apply status filter
+        if status_filter != 'all':
+            query = query.filter(LoanApplication.status == status_filter)
+        
+        # Apply sorting
+        if sort_by == 'created_at':
+            if order == 'desc':
+                query = query.order_by(LoanApplication.created_at.desc())
+            else:
+                query = query.order_by(LoanApplication.created_at.asc())
+        elif sort_by == 'loan_amount':
+            if order == 'desc':
+                query = query.order_by(LoanApplication.loan_amount.desc())
+            else:
+                query = query.order_by(LoanApplication.loan_amount.asc())
+        
+        # Join with related entities for eager loading
+        query = query.outerjoin(RiskAssessment).outerjoin(User, LoanApplication.handled_by_id == User.id)
+        
+        # Paginate results
+        all_applications = query.paginate(page=page, per_page=15)
+        
+        # Calculate statistics
+        total_loans = LoanApplication.query.count()
+        approved_loans = LoanApplication.query.filter_by(status='Approved').count()
+        rejected_loans = LoanApplication.query.filter_by(status='Rejected').count()
+        pending_loans = LoanApplication.query.filter_by(status='Pending').count()
+        review_loans = LoanApplication.query.filter_by(status='Under Review').count()
+        
+        return render_template(
+            'staff_index.html', 
+            title='Dashboard',
+            applications=all_applications,
+            total_applications=total_loans,
+            approved_applications=approved_loans,
+            rejected_applications=rejected_loans,
+            pending_applications=pending_loans,
+            review_applications=review_loans,
+            status_filter=status_filter,
+            sort_by=sort_by,
+            order=order
+        )
+    else:
+        # For regular users, show their own applications
+        # Get the user's loan applications
+        applications = LoanApplication.query.filter_by(user_id=current_user.id).order_by(LoanApplication.created_at.desc()).limit(5).all()
+        
+        # Calculate some statistics for the dashboard
+        total_applications = LoanApplication.query.filter_by(user_id=current_user.id).count()
+        approved_applications = LoanApplication.query.filter_by(user_id=current_user.id, status='Approved').count()
+        
+        return render_template(
+            'index.html', 
+            title='Dashboard',
+            applications=applications,
+            total_applications=total_applications,
+            approved_applications=approved_applications
+        )
 
 
 @bp.route('/apply', methods=['GET', 'POST'])

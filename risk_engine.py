@@ -15,71 +15,90 @@ class CreditRiskEngine:
         and loan amount relative to income.
         
         Returns a value between 0 and 1
+        
+        Note: Model adjusted to provide more realistic spread of approvals and rejections
         """
         # Base PD derived from credit score (higher score = lower PD)
         # Credit scores typically range from 300-850
-        # More responsive to credit score changes - steeper curve
-        if credit_score >= 700:
-            # Good credit scores get significantly lower base PD
-            base_pd = 0.1 * (1 - ((credit_score - 700) / 150))
-        elif credit_score >= 600:
-            # Fair credit scores get moderate base PD
-            base_pd = 0.3 * (1 - ((credit_score - 600) / 100))
-        else:
-            # Poor credit scores still have a chance
-            base_pd = 0.5 * (1 - ((credit_score - 300) / 300))
+        # More responsive to credit score changes - steeper curve with increased rejection rate
+        if credit_score >= 740:  # Excellent
+            # Excellent credit scores get significantly lower base PD
+            base_pd = 0.08 * (1 - ((credit_score - 740) / 110))
+        elif credit_score >= 670:  # Good
+            # Good credit scores get moderate base PD
+            base_pd = 0.15 * (1 - ((credit_score - 670) / 70)) + 0.05
+        elif credit_score >= 580:  # Fair
+            # Fair credit scores get higher base PD
+            base_pd = 0.3 * (1 - ((credit_score - 580) / 90)) + 0.15
+        else:  # Poor
+            # Poor credit scores have much higher PD - increased rejection likelihood
+            base_pd = 0.5 * (1 - ((credit_score - 300) / 280)) + 0.3
         
         # Debt-to-income ratio (higher ratio = higher risk)
         monthly_income = income / 12
         monthly_debt = debt / 12
         debt_to_income = (monthly_debt + expenses) / monthly_income
         
-        # More forgiving DTI curve with progressive thresholds
-        if debt_to_income <= 0.3:
+        # More realistic DTI curve with stricter thresholds for higher rejection rate
+        if debt_to_income <= 0.28:  # Conservative DTI threshold used by many lenders
             # Low DTI is very good
-            dti_factor = debt_to_income * 0.5
-        elif debt_to_income <= 0.4:
+            dti_factor = debt_to_income * 0.6
+        elif debt_to_income <= 0.36:  # Standard benchmark for many lenders
             # Moderate DTI is acceptable
-            dti_factor = 0.15 + ((debt_to_income - 0.3) * 1.0)
+            dti_factor = 0.17 + ((debt_to_income - 0.28) * 1.25)
+        elif debt_to_income <= 0.43:  # Max for many qualified mortgages
+            # Higher DTI is riskier
+            dti_factor = 0.27 + ((debt_to_income - 0.36) * 1.5)
         else:
-            # Higher DTI has diminishing penalties
-            dti_factor = 0.25 + ((debt_to_income - 0.4) * 0.8)
+            # Very high DTI has significant penalties
+            dti_factor = 0.37 + ((debt_to_income - 0.43) * 1.8)
         
-        # Cap at a reasonable maximum
-        dti_factor = min(dti_factor, 0.6)
+        # Cap at a reasonable maximum but higher than before
+        dti_factor = min(dti_factor, 0.7)
         
         # Loan amount to income ratio (higher ratio = higher risk)
         loan_to_income = loan_amount / income
         
-        # More balanced loan-to-income assessment
+        # More aggressive loan-to-income assessment
         if loan_to_income <= 0.5:
             # Small loans relative to income are low risk
             lti_factor = loan_to_income * 0.4
         elif loan_to_income <= 1.0:
             # Moderate loans are reasonable
-            lti_factor = 0.2 + ((loan_to_income - 0.5) * 0.5)
+            lti_factor = 0.2 + ((loan_to_income - 0.5) * 0.6)
+        elif loan_to_income <= 2.0:
+            # Larger loans have higher risk
+            lti_factor = 0.5 + ((loan_to_income - 1.0) * 0.4)
         else:
-            # Large loans have diminishing penalties
-            lti_factor = 0.45 + ((loan_to_income - 1.0) * 0.3)
+            # Very large loans have significant risk
+            lti_factor = 0.9 + ((loan_to_income - 2.0) * 0.2)
         
-        # Cap at a reasonable maximum
-        lti_factor = min(lti_factor, 0.6)
+        # Cap at a higher maximum to allow more rejections
+        lti_factor = min(lti_factor, 0.7)
         
-        # Weight factors and calculate final PD
-        weighted_pd = (base_pd * 0.5) + (dti_factor * 0.3) + (lti_factor * 0.2)
+        # Weight factors and calculate final PD - adjusted to make credit score more influential
+        weighted_pd = (base_pd * 0.55) + (dti_factor * 0.25) + (lti_factor * 0.2)
         
-        # Apply loan term adjustment (longer loans = higher risk but with diminishing effect)
-        if loan_term <= 24:
-            term_factor = loan_term / 48  # Short terms are low risk
-        else:
-            term_factor = 0.5 + ((loan_term - 24) / 72)  # Longer terms have diminishing risk increase
+        # Apply loan term adjustment (longer loans = higher risk)
+        # More aggressive term penalty
+        if loan_term <= 12:  # Very short term
+            term_factor = loan_term / 48
+        elif loan_term <= 24:  # Short term
+            term_factor = 0.25 + ((loan_term - 12) / 60)
+        else:  # Longer terms
+            term_factor = 0.45 + ((loan_term - 24) / 72)
         
-        term_factor = min(term_factor, 0.8)  # Cap term factor
+        term_factor = min(term_factor, 0.85)  # Higher cap for term factor
         
-        final_pd = weighted_pd * (1 + (term_factor * 0.15))
+        final_pd = weighted_pd * (1 + (term_factor * 0.2))
+        
+        # Add small random variation to create more natural spread
+        # This simulates unmeasured factors that affect default probability
+        random_variation = np.random.uniform(0.92, 1.08)
+        final_pd = final_pd * random_variation
         
         # Ensure PD is between 0 and 1
-        return min(max(final_pd, 0), 1)
+        return min(max(final_pd, 0.01), 0.99)
     
     @staticmethod
     def calculate_loss_given_default(loan_amount, credit_score, employment_status):
@@ -223,11 +242,17 @@ class CreditRiskEngine:
         Returns:
         - recommendation: "Approve", "Review", or "Reject"
         - reasons: List of reasons for the recommendation
+        
+        Note: Model adjusted to provide more realistic approval/rejection rates
         """
         reasons = []
         
-        # More lenient decision thresholds
-        if risk_rating <= 4:  # Increased from 3 to 4
+        # Add random factor to create more realistic distribution
+        # This represents unmeasured or subjective factors in the decision process
+        random_factor = np.random.uniform(0, 1)
+        
+        # Use tighter thresholds for more realistic approval/rejection rates
+        if risk_rating <= 3:  # Conservative approval threshold
             recommendation = "Approve"
             
             if risk_rating <= 2:
@@ -235,46 +260,70 @@ class CreditRiskEngine:
             else:
                 reasons.append("Good risk profile")
                 
-        elif risk_rating <= 7:  # Same threshold but more lenient interpretation
-            # Special handling for borderline cases
-            if risk_rating <= 5 and pd < 0.25 and debt_to_income_ratio < 0.45:
+        elif risk_rating <= 6:  # Middle range needs more granular decisions
+            # Borderline cases get split between Approve and Review
+            if risk_rating <= 4 and pd < 0.22 and debt_to_income_ratio < 0.4:
                 recommendation = "Approve"
                 reasons.append("Acceptable risk profile with good factors")
                 
-                if pd > 0.2:
+                if pd > 0.15:
                     reasons.append("Consider slightly lower loan amount for better terms")
+            # Some risk rating 5-6 applications with very good other metrics get approved
+            elif risk_rating <= 5 and pd < 0.18 and debt_to_income_ratio < 0.35 and random_factor > 0.3:
+                recommendation = "Approve"
+                reasons.append("Conditionally approved with acceptable risk factors")
+                reasons.append("Recommend lower loan amount or shorter term")
             else:
                 recommendation = "Review"
                 
-                if pd > 0.25:  # Increased from 0.2 to 0.25
+                if pd > 0.2:  
                     reasons.append("Moderate probability of default")
                 
-                if debt_to_income_ratio > 0.45:  # Increased from 0.4 to 0.45
+                if debt_to_income_ratio > 0.4:
                     reasons.append("Elevated debt-to-income ratio")
                     
                 reasons.append("Risk factors require additional review")
         else:
-            # Only truly high-risk applications are rejected
-            if risk_rating >= 9:  # Only ratings of 9-10 are automatic rejects
-                recommendation = "Reject"
-                
-                if pd > 0.4:  # Increased from 0.3 to 0.4
-                    reasons.append("High probability of default")
-                
-                if debt_to_income_ratio > 0.55:  # Increased from 0.5 to 0.55
-                    reasons.append("Excessive debt-to-income ratio")
+            # Higher risk ratings have increased rejection likelihood
+            if risk_rating >= 8:  # Ratings 8-10 have high rejection rate
+                # Some 8s might still go to review if other factors are good
+                if risk_rating == 8 and pd < 0.3 and debt_to_income_ratio < 0.45 and random_factor > 0.7:
+                    recommendation = "Review"
+                    reasons.append("High risk profile requiring detailed manual assessment")
+                    reasons.append("Potential for approval with significant conditions")
+                else:
+                    recommendation = "Reject"
                     
-                reasons.append("Overall risk rating exceeds acceptable threshold")
+                    if pd > 0.35:
+                        reasons.append("High probability of default")
+                    
+                    if debt_to_income_ratio > 0.5:
+                        reasons.append("Excessive debt-to-income ratio")
+                        
+                    reasons.append("Overall risk rating exceeds acceptable threshold")
             else:
-                # Risk ratings of 8 go to review instead of reject
-                recommendation = "Review"
-                reasons.append("High risk factors requiring detailed evaluation")
-                
-                if pd > 0.35:
-                    reasons.append("Elevated probability of default")
+                # Risk rating 7
+                # Mix of Review and Reject for risk rating 7, with higher chance of review
+                if pd < 0.32 and debt_to_income_ratio < 0.48 and random_factor > 0.4:
+                    recommendation = "Review"
+                    reasons.append("Borderline risk profile")
+                    reasons.append("May qualify with additional conditions or guarantees")
+                    reasons.append("High risk factors requiring detailed evaluation")
                     
-                if debt_to_income_ratio > 0.5:
-                    reasons.append("High debt-to-income ratio")
+                    if pd > 0.35:
+                        reasons.append("Elevated probability of default")
+                        
+                    if debt_to_income_ratio > 0.5:
+                        reasons.append("High debt-to-income ratio")
+                else:
+                    recommendation = "Reject"
+                    reasons.append("Multiple risk factors above acceptable thresholds")
+                    
+                    if pd > 0.3:
+                        reasons.append("Elevated probability of default")
+                    
+                    if debt_to_income_ratio > 0.45:
+                        reasons.append("High debt-to-income ratio")
         
         return recommendation, reasons
     
