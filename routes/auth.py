@@ -40,7 +40,7 @@ def login():
         flash('You have been logged in successfully!', 'success')
         return redirect(next_page)
     
-    return render_template('login.html', title='Log In', form=form)
+    return render_template('auth/login.html', title='Log In', form=form)
 
 
 @bp.route('/logout')
@@ -73,7 +73,7 @@ def register():
         flash('Your account has been created successfully! You can now log in.', 'success')
         return redirect(url_for('auth.login'))
     
-    return render_template('register.html', title='Register', form=form)
+    return render_template('auth/register.html', title='Register', form=form)
 
 
 @bp.route('/forgot_password', methods=['GET', 'POST'])
@@ -98,7 +98,7 @@ def forgot_password():
         else:
             flash('No account found with that email address.', 'danger')
     
-    return render_template('forgot_password.html', title='Forgot Password', form=form)
+    return render_template('auth/forgot_password.html', title='Forgot Password', form=form)
 
 
 @bp.route('/reset_password', methods=['GET', 'POST'])
@@ -135,4 +135,4 @@ def reset_password():
         flash('Your password has been reset successfully. You can now log in with your new password.', 'success')
         return redirect(url_for('auth.login'))
     
-    return render_template('forgot_password.html', title='Reset Password', form=form, reset=True)
+    return render_template('auth/forgot_password.html', title='Reset Password', form=form, reset=True)
