@@ -8,6 +8,7 @@ to run completely offline, without internet access.
 import os
 import sys
 import urllib.request
+import shutil
 from pathlib import Path
 
 # Directories for static files
@@ -19,23 +20,33 @@ FONT_DIR = BASE_DIR / 'fontawesome/webfonts'
 # List of dependencies to download
 DEPENDENCIES = {
     # Bootstrap
-    f'{CSS_DIR}/bootstrap.min.css': 'https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css',
+    f'{CSS_DIR}/bootstrap.min.css': 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+    f'{CSS_DIR}/bootstrap-dark.min.css': 'https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css',
     f'{JS_DIR}/bootstrap.bundle.min.js': 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
     
     # Chart.js
-    f'{JS_DIR}/chart.min.js': 'https://cdn.jsdelivr.net/npm/chart.js',
+    f'{JS_DIR}/chart.min.js': 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js',
     
     # Font Awesome CSS
     f'{BASE_DIR}/fontawesome/css/all.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     f'{BASE_DIR}/fontawesome/css/fontawesome.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/fontawesome.min.css',
     f'{BASE_DIR}/fontawesome/css/solid.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/solid.min.css',
     f'{BASE_DIR}/fontawesome/css/regular.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/regular.min.css',
+    f'{BASE_DIR}/fontawesome/css/brands.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/brands.min.css',
     
     # Font Awesome Fonts
     f'{FONT_DIR}/fa-solid-900.woff2': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2',
     f'{FONT_DIR}/fa-solid-900.ttf': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.ttf',
     f'{FONT_DIR}/fa-regular-400.woff2': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-regular-400.woff2',
     f'{FONT_DIR}/fa-regular-400.ttf': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-regular-400.ttf',
+    f'{FONT_DIR}/fa-brands-400.woff2': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-brands-400.woff2',
+    f'{FONT_DIR}/fa-brands-400.ttf': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-brands-400.ttf',
+    
+    # jQuery (needed for some Bootstrap features)
+    f'{JS_DIR}/jquery.min.js': 'https://code.jquery.com/jquery-3.6.0.min.js',
+    
+    # Additional Bootstrap JS components
+    f'{JS_DIR}/popper.min.js': 'https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js'
 }
 
 def ensure_dirs():
