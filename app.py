@@ -21,8 +21,27 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_development")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///credit_risk.db")
+# Configure database with fallback to SQLite
+db_url = os.environ.get("DATABASE_URL")
+sqlite_url = "sqlite:///credit_risk.db"
+
+# Try to use PostgreSQL but fallback to SQLite if connection fails
+if db_url and 'postgres' in db_url:
+    try:
+        import psycopg2
+        # Test the connection
+        conn = psycopg2.connect(db_url)
+        conn.close()
+        # If we get here, connection worked
+        app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+        print(f"Using PostgreSQL database")
+    except Exception as e:
+        print(f"PostgreSQL connection failed: {e}")
+        print(f"Falling back to SQLite database")
+        app.config["SQLALCHEMY_DATABASE_URI"] = sqlite_url
+else:
+    print(f"No valid DATABASE_URL found. Using SQLite database")
+    app.config["SQLALCHEMY_DATABASE_URI"] = sqlite_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
